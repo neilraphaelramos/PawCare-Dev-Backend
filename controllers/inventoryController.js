@@ -15,7 +15,7 @@ router.get('/fetch', (req, res) => {
     });
 });
 
-router.post("/add", uploadInventory.single('photo'), (req, res) => {
+router.post("/add", uploadInventory, (req, res) => {
     const { item_code, name, item_group, date_purchase, date_expiration, stock, price, unit } = req.body;
     const photo = req.file ? req.file.path : null;
 
@@ -38,7 +38,7 @@ router.post("/add", uploadInventory.single('photo'), (req, res) => {
 });
 
 // Update inventory item
-router.put("/update/:id", uploadInventory.single("photo"), async (req, res) => {
+router.put("/update/:id", uploadInventory, async (req, res) => {
     const { id } = req.params;
     const {
         item_code,

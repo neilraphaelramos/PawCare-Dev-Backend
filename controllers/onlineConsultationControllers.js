@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db');
 const { uploadConsultation } = require('../config/multerConfig');
 
-router.post('/submit', uploadConsultation.single('file_payment'), async (req, res) => {
+router.post('/submit', uploadConsultation, async (req, res) => {
   const { owner_name, pet_name, pet_type, pet_species, concern_description, consult_type } = req.body;
   const channel_consult_ID = "consult" + Date.now();
 

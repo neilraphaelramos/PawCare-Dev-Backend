@@ -4,7 +4,7 @@ const db = require("../db");
 const router = express.Router();
 const { uploadProfile } = require("../config/multerConfig");
 
-router.post("/", uploadProfile.single("image"), async (req, res) => {
+router.post("/", uploadProfile, async (req, res) => {
   let { id, firstName, middleName, lastName, suffix, username, email, phone, password, role } = req.body;
 
   const idValue = Array.isArray(id) ? id[0] : id;

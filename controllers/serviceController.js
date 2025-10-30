@@ -26,7 +26,7 @@ router.post('/fetch', (req, res) => {
 });
 
 // ➕ Add a new service
-router.post('/add', uploadService.single('image'), (req, res) => {
+router.post('/add', uploadService, (req, res) => {
     const { title, description } = req.body;
 
     if (!title || !description || !req.file) {
@@ -51,7 +51,7 @@ router.post('/add', uploadService.single('image'), (req, res) => {
 });
 
 // ✏️ Update an existing service
-router.put('/update/:id', uploadService.single('image'), async (req, res) => {
+router.put('/update/:id', uploadService, async (req, res) => {
   const { id } = req.params;
   const { title, description } = req.body;
   const newImage = req.file ? req.file.path : null;

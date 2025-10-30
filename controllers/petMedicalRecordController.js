@@ -133,7 +133,7 @@ router.post('/add_pet', (req, res) => {
     });
 });
 
-router.put('/edit_pet/:id', uploadMedicalRecord.single('photo'), async (req, res) => {
+router.put('/edit_pet/:id', uploadMedicalRecord, async (req, res) => {
   const { id } = req.params;
   const {
     owner_name,

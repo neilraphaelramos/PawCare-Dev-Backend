@@ -30,7 +30,7 @@ router.get('/fetch/:username', (req, res) => {
     });
 });
 
-router.post('/add_pet_info', uploadMedicalRecord.single('photo'), (req, res) => {
+router.post('/add_pet_info', uploadMedicalRecord, (req, res) => {
     const { petName, petType, species, petAge, petGender, ownerUsername, ownerName } = req.body;
 
     // Validate required fields
@@ -64,7 +64,7 @@ router.post('/add_pet_info', uploadMedicalRecord.single('photo'), (req, res) => 
     );
 });
 
-router.put('/edit_pet_info/:id', uploadMedicalRecord.single('photo'), async (req, res) => {
+router.put('/edit_pet_info/:id', uploadMedicalRecord, async (req, res) => {
     const { id } = req.params;
     const { petName, petType, species, petAge, petGender } = req.body;
     const newImage = req.file ? req.file.path : null;

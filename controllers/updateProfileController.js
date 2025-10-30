@@ -5,7 +5,7 @@ const { uploadProfile } = require("../config/multerConfig"); // ✅ Import Cloud
 
 const router = express.Router();
 
-router.post("/", uploadProfile.single("profile_Pic"), async (req, res) => {
+router.post("/", uploadProfile, async (req, res) => {
   try {
     const {
       id,
