@@ -5,7 +5,7 @@ const { uploadService } = require('../config/multerConfig');
 const cloudinary = require("../config/cloudinaryConfig");
 
 // 🧾 Fetch all services
-router.post('/fetch', (req, res) => {
+router.get('/fetch', (req, res) => {
     const fetchDataServicesSQL = `SELECT * FROM services`;
 
     db.query(fetchDataServicesSQL, (err, results) => {
