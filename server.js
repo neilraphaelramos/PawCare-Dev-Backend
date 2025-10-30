@@ -36,7 +36,12 @@ const server = http.createServer(app);
 
 const io = initSocket(server);
 
-app.use(cors({ origin: process.env.DEFAULT_URL }));
+app.use(cors({
+  origin: process.env.DEFAULT_URL,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 //app.use('/uploads', express.static(path.join(__dirname, 'tmp/uploads')));
