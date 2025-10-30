@@ -34,7 +34,7 @@ router.post("/api", (req, res) => {
 
 router.get("/api/:uid", (req, res) => {
   const { uid } = req.params;
-  db.query("SELECT * FROM notification WHERE UID = ? ORDER BY notify_date DESC", [uid], (err, rows) => {
+  db.query("SELECT * FROM notification WHERE UID = ? ORDER BY notify_ID DESC", [uid], (err, rows) => {
     if (err) return res.status(500).json({ error: err });
     res.json(rows);
   });

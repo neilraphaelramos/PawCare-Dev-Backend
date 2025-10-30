@@ -39,17 +39,17 @@ router.post("/", uploadProfile, async (req, res) => {
     const updatesInfo = [];
     const paramsInfo = [];
 
-    if (firstName) { updatesInfo.push("firstName = ?"); paramsInfo.push(firstName); }
-    if (middleName) { updatesInfo.push("middleName = ?"); paramsInfo.push(middleName); }
-    if (lastName) { updatesInfo.push("lastName = ?"); paramsInfo.push(lastName); }
-    if (suffix) { updatesInfo.push("suffix = ?"); paramsInfo.push(suffix); }
-    if (phone) { updatesInfo.push("phoneNumber = ?"); paramsInfo.push(phone); }
-    if (houseNumber) { updatesInfo.push("houseNum = ?"); paramsInfo.push(houseNumber); }
-    if (province) { updatesInfo.push("province = ?"); paramsInfo.push(province); }
-    if (municipality) { updatesInfo.push("municipality = ?"); paramsInfo.push(municipality); }
-    if (barangay) { updatesInfo.push("barangay = ?"); paramsInfo.push(barangay); }
-    if (zipCode) { updatesInfo.push("zipCode = ?"); paramsInfo.push(zipCode); }
-    if (bio) { updatesInfo.push("bio = ?"); paramsInfo.push(bio); }
+    if (firstName !== undefined) { updatesInfo.push("firstName = ?"); paramsInfo.push(firstName || null); }
+    if (middleName !== undefined) { updatesInfo.push("middleName = ?"); paramsInfo.push(middleName || null); }
+    if (lastName !== undefined) { updatesInfo.push("lastName = ?"); paramsInfo.push(lastName || null); }
+    if (suffix !== undefined) { updatesInfo.push("suffix = ?"); paramsInfo.push(suffix || null); }
+    if (phone !== undefined) { updatesInfo.push("phoneNumber = ?"); paramsInfo.push(phone || null); }
+    if (houseNumber !== undefined) { updatesInfo.push("houseNum = ?"); paramsInfo.push(houseNumber || null); }
+    if (province !== undefined) { updatesInfo.push("province = ?"); paramsInfo.push(province || null); }
+    if (municipality !== undefined) { updatesInfo.push("municipality = ?"); paramsInfo.push(municipality || null); }
+    if (barangay !== undefined) { updatesInfo.push("barangay = ?"); paramsInfo.push(barangay || null); }
+    if (zipCode !== undefined) { updatesInfo.push("zipCode = ?"); paramsInfo.push(zipCode || null); }
+    if (bio !== undefined) { updatesInfo.push("bio = ?"); paramsInfo.push(bio || null); }
 
     if (req.file && req.file.path) {
       updatesInfo.push("profile_Pic = ?");
