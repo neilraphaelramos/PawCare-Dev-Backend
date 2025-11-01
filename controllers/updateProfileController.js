@@ -1,7 +1,8 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const db = require("../db");
-const { uploadProfile } = require("../config/multerConfig"); // ✅ Import Cloudinary uploader
+const { uploadProfile } = require("../config/multerConfig");
+const cloudinary = require("../config/cloudinaryConfig");
 
 const router = express.Router();
 
@@ -27,6 +28,7 @@ router.post("/", uploadProfile, async (req, res) => {
 
     if (!id) return res.status(400).json({ error: "User ID is required" });
 
+    // 🔹 Fetch current user credentials
     const [user] = await new Promise((resolve, reject) => {
       db.query("SELECT * FROM user_credentials WHERE id = ?", [id], (err, results) => {
         if (err) reject(err);
@@ -35,6 +37,14 @@ router.post("/", uploadProfile, async (req, res) => {
     });
 
     if (!user) return res.status(404).json({ error: "User not found" });
+
+    // 🔹 Fetch user info for old profile pic
+    const [userInfo] = await new Promise((resolve, reject) => {
+      db.query("SELECT profile_Pic FROM user_infos WHERE user_ID = ?", [id], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
 
     const updatesInfo = [];
     const paramsInfo = [];
@@ -51,13 +61,31 @@ router.post("/", uploadProfile, async (req, res) => {
     if (zipCode !== undefined) { updatesInfo.push("zipCode = ?"); paramsInfo.push(zipCode || null); }
     if (bio !== undefined) { updatesInfo.push("bio = ?"); paramsInfo.push(bio || null); }
 
+    // 🔹 Handle new profile picture upload
     if (req.file && req.file.path) {
+      // 🧹 Delete old Cloudinary image if it exists
+      if (userInfo && userInfo.profile_Pic) {
+        const oldUrl = userInfo.profile_Pic;
+        const publicIdMatch = oldUrl.match(/\/upload\/(?:v\d+\/)?([^\.]+)/);
+        const publicId = publicIdMatch ? publicIdMatch[1] : null;
+
+        if (publicId) {
+          try {
+            console.log(`[DEBUG] Deleting old Cloudinary image: ${publicId}`);
+            await cloudinary.uploader.destroy(publicId);
+          } catch (err) {
+            console.error("[Cloudinary Delete Error]:", err.message);
+          }
+        }
+      }
+
       updatesInfo.push("profile_Pic = ?");
       paramsInfo.push(req.file.path);
     }
 
     paramsInfo.push(id);
 
+    // 🔹 Handle password change
     if (currentPassword && newPassword && password) {
       const isMatch = await bcrypt.compare(currentPassword, user.password);
       if (!isMatch) return res.status(400).json({ error: "Current password is incorrect" });
@@ -72,6 +100,7 @@ router.post("/", uploadProfile, async (req, res) => {
       });
     }
 
+    // 🔹 Update user info
     if (updatesInfo.length > 0) {
       const sql = `UPDATE user_infos SET ${updatesInfo.join(", ")} WHERE user_ID = ?`;
       await new Promise((resolve, reject) => {
@@ -82,6 +111,7 @@ router.post("/", uploadProfile, async (req, res) => {
       });
     }
 
+    // 🔹 Fetch updated user data
     const [updatedUser] = await new Promise((resolve, reject) => {
       const fetchsql = `
         SELECT uc.*, ui.firstName, ui.middleName, ui.lastName, ui.suffix,
