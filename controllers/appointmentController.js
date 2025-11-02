@@ -52,22 +52,26 @@ router.put('/:id/status', (req, res) => {
   });
 });
 
-router.get('/fully-booked', async (req, res) => {
-  try {
-    const [rows] = await db.promise().query(`
-      SELECT set_date
-      FROM appointments_tables
-      GROUP BY set_date
-      HAVING COUNT(*) >= 10  -- adjust this limit if needed
-      ORDER BY set_date ASC
-    `);
-    
-    res.json(rows.map(r => r.set_date));
-  } catch (err) {
-    console.error("Error fetching fully booked dates:", err);
-    res.status(500).json([]);
-  }
+router.get('/fully-booked', (req, res) => {
+  const sql = `
+    SELECT set_date
+    FROM appointments_tables
+    GROUP BY set_date
+    HAVING COUNT(*) >= 10
+    ORDER BY set_date ASC
+  `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching fully booked dates:", err);
+      return res.status(500).json([]);
+    }
+
+    const dates = results.map(r => r.set_date);
+    res.json(dates);
+  });
 });
+
 
 
 module.exports = router;
