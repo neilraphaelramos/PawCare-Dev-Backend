@@ -8,15 +8,15 @@ function initSocket(server) {
   io.on('connection', (socket) => {
     console.log('[Socket] New client connected:', socket.id);
 
-    socket.on('joinConsult', ({ consultID, userType }) => {
+    socket.on('joinConsult', ({ consultID, userType, name }) => {
       socket.join(consultID);
-      console.log(`[Socket] ${userType} joined room ${consultID}`);
-      socket.to(consultID).emit('systemMessage', `${userType} joined the consultation`);
+      console.log(`[Socket] ${userType} (${name}) joined room ${consultID}`);
+      socket.to(consultID).emit('systemMessage', `${userType} (${name}) joined the consultation`);
     });
 
-    socket.on('sendMessage', ({ consultID, from, text }) => {
-      const message = { consultID, from, text, timestamp: new Date() };
-      console.log(`[Socket] Message from ${from} in room ${consultID}:`, text);
+    socket.on('sendMessage', ({ consultID, from, name, text, photo }) => {
+      const message = { consultID, from, name, text, photo, timestamp: new Date() };
+      console.log(`[Socket] Message from ${name} (${from}) in room ${consultID}:`, text);
       socket.to(consultID).emit('receiveMessage', message);
     });
 
