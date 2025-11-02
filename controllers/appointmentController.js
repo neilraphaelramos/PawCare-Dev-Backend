@@ -56,10 +56,12 @@ router.get('/fully-booked', async (req, res) => {
   try {
     const [rows] = await db.promise().query(`
       SELECT set_date
-      FROM appointments
+      FROM appointments_tables
       GROUP BY set_date
-      HAVING COUNT(*) >= 10;  -- assuming 10 slots max per day
+      HAVING COUNT(*) >= 10  -- adjust this limit if needed
+      ORDER BY set_date ASC
     `);
+    
     res.json(rows.map(r => r.set_date));
   } catch (err) {
     console.error("Error fetching fully booked dates:", err);
@@ -69,3 +71,4 @@ router.get('/fully-booked', async (req, res) => {
 
 
 module.exports = router;
+
