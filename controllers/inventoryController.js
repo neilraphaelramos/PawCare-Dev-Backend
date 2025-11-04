@@ -33,6 +33,16 @@ router.post("/add", uploadInventory, (req, res) => {
             console.error("Error adding inventory:", err);
             return res.status(500).json({ success: false, error: "Database error" });
         }
+
+        const productId = result.insertId;
+
+        const logSql = `INSERT INTO inventory_stock_in_out (product_ID, stockIn, stockOut)
+                        VALUES (?, ?, 0)`
+
+        db.query(logSql, [productId, stock], (logErr) => {
+            if (logErr) console.error("Error logging initial stock:", logErr);
+        })
+
         res.json({ success: true, id: result.insertId });
     });
 });
@@ -56,7 +66,7 @@ router.put("/update/:id", uploadInventory, async (req, res) => {
     try {
         // Step 1: Get the old photo URL
         const [rows] = await db.promise().query(
-            "SELECT photo FROM inventory WHERE product_ID = ?",
+            "SELECT photo, stock FROM inventory WHERE product_ID = ?",
             [id]
         );
 
@@ -65,6 +75,9 @@ router.put("/update/:id", uploadInventory, async (req, res) => {
         }
 
         const oldPhoto = rows[0].photo;
+        const oldStock = rows[0].stock;
+        const newStock = stock;
+        const diff = newStock - oldStock;
         let photoToSave = oldPhoto;
 
         // Step 2: If new photo uploaded, delete the old one on Cloudinary
@@ -87,16 +100,14 @@ router.put("/update/:id", uploadInventory, async (req, res) => {
                 }
             }
 
-            // Replace with the new Cloudinary image URL
             photoToSave = newPhoto;
         }
 
-        // Step 3: Update DB
         const sql = `
-      UPDATE inventory 
-      SET item_code=?, photo=?, name=?, item_group=?, date_purchase=?, date_expiration=?, stock=?, price=?, unit=? 
-      WHERE product_ID=?
-    `;
+            UPDATE inventory 
+            SET item_code=?, photo=?, name=?, item_group=?, date_purchase=?, date_expiration=?, stock=?, price=?, unit=? 
+            WHERE product_ID=?
+        `;
 
         const [result] = await db.promise().query(sql, [
             item_code || null,
@@ -113,6 +124,21 @@ router.put("/update/:id", uploadInventory, async (req, res) => {
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, message: "Item not found" });
+        }
+
+        if (diff !== 0) {
+            const stockIn = diff > 0 ? diff : 0;
+            const stockOut = diff < 0 ? Math.abs(diff) : 0;
+
+            const logSql = `
+                INSERT INTO inventory_stock_in_out (product_ID, stockIn, stockOut)
+                VALUES (?, ?, ?)
+            `;
+
+            await db.promise().query(logSql, [id, stockIn, stockOut]);
+            console.log(
+                `📦 Stock movement logged → Product ${id}: stockIn=${stockIn}, stockOut=${stockOut}`
+            );
         }
 
         res.json({
@@ -157,11 +183,11 @@ router.delete("/delete/:id", async (req, res) => {
         if (photoUrl && photoUrl.includes("cloudinary.com")) {
             try {
                 const urlParts = photoUrl.split("/");
-                const fileName = urlParts.pop(); 
+                const fileName = urlParts.pop();
                 const folderIndex = urlParts.findIndex((part) =>
                     part.includes("upload")
                 );
-                const folderPath = urlParts.slice(folderIndex + 1).join("/"); 
+                const folderPath = urlParts.slice(folderIndex + 1).join("/");
                 const publicId = `${folderPath}/${fileName.split(".")[0]}`;
 
                 await cloudinary.uploader.destroy(publicId);

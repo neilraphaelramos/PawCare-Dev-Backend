@@ -88,7 +88,10 @@ router.put('/update_status/:id', (req, res) => {
   const sql = `UPDATE orders SET order_status = ? WHERE id_order = ?`;
 
   db.query(sql, [status, id], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.log(err)
+      return res.status(500).json({ error: err.message });
+    }
     res.json({ message: 'Order Status updated' });
   });
 });
@@ -109,155 +112,169 @@ router.post('/payment_setorder', async (req, res) => {
 
   const sqlUpdateStock = `
     UPDATE inventory 
-    SET stock = stock - ? 
-    WHERE name = ? 
+    SET stock = ? 
+    WHERE product_ID = ?
   `;
 
-  const sqlCheckStock = `
-    SELECT product_ID, name, stock FROM inventory WHERE name = ?
+  const sqlStockOut = `
+    SELECT photo, stock
+    FROM inventory
+    WHERE product_ID = ?
+  `;
+
+  const sqlInsertStockLog = `
+    INSERT INTO inventory_stock_in_out (product_ID, stockIn, stockOut)
+    VALUES (?, ?, ?)
   `;
 
   try {
-    db.query(sqlorders, [uid, name, address, date, amount, status, methods], (err, orderResult) => {
-      if (err) {
-        console.error('[DB] Insert Order Error:', err);
-        return res.status(500).json({ success: false, message: 'Failed to create order' });
-      }
+    const [orderResult] = await db.promise().query(sqlorders, [
+      uid,
+      name,
+      address,
+      date,
+      amount,
+      status,
+      methods,
+    ]);
 
-      const orderId = orderResult.insertId;
-      let lowStockWarnings = [];
+    const orderId = orderResult.insertId;
+    let lowStockWarnings = [];
 
-      if (Array.isArray(items) && items.length > 0) {
-        items.forEach((item) => {
-          // 1️⃣ Insert order items
-          db.query(sqllistorders, [orderId, item.product_ID, item.name, item.qty], (err2) => {
-            if (err2) console.error('[DB] Insert Order Items Error:', err2);
-          });
-
-          // 2️⃣ Subtract from inventory stock
-          db.query(sqlUpdateStock, [item.qty, item.name], (err3) => {
-            if (err3) {
-              console.error('[DB] Update Inventory Stock Error:', err3);
-            } else {
-              // 3️⃣ Check remaining stock
-              db.query(sqlCheckStock, [item.name], (err4, stockResult) => {
-                if (!err4 && stockResult.length > 0) {
-                  const remaining = stockResult[0].stock;
-                  if (remaining === 1) {
-                    lowStockWarnings.push(`⚠️ ${item.name} is almost out of stock (only 1 left)!`);
-                  } else if (remaining <= 0) {
-                    lowStockWarnings.push(`❌ ${item.name} is now out of stock.`);
-                  }
-                }
-              });
-            }
-          });
-        });
-      }
-
-      // 🟢 If COD, finish immediately
-      if (methods === 'cod') {
-        return res.json({
-          success: true,
-          message: 'Order placed successfully with Cash on Delivery',
-          orderId,
-          redirectUrl: null,
-          warnings: lowStockWarnings // send low stock messages to frontend too
-        });
-      }
-
-      // 💳 PayMongo flow for GCash / Maya
-      (async () => {
+    if (Array.isArray(items) && items.length > 0) {
+      for (const item of items) {
         try {
-          const headers = {
-            accept: 'application/json',
-            'content-type': 'application/json',
-            authorization: 'Basic ' + Buffer.from(`${process.env.SECRET_KEY_PAYMONGO}:`).toString('base64')
-          };
+          const [rows] = await db.promise().query(sqlStockOut, [item.product_ID]);
 
-          const amountInCentavos = Math.round(Number(amount) * 100);
-
-          // Create Payment Intent
-          const intentRes = await fetch('https://api.paymongo.com/v1/payment_intents', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              data: {
-                attributes: {
-                  amount: amountInCentavos,
-                  currency: 'PHP',
-                  payment_method_allowed: ['gcash', 'paymaya'],
-                  capture_type: 'automatic',
-                  statement_descriptor: `Order #${orderId}`
-                }
-              }
-            })
-          });
-
-          const intentData = await intentRes.json();
-          if (!intentData.data) {
-            console.error('[PAYMONGO INTENT ERROR]', intentData);
-            return res.status(400).json({ success: false, message: 'Failed to create payment intent' });
+          if (rows.length === 0) {
+            console.warn(`⚠️ Item not found in inventory: ${item.name}`);
+            continue;
           }
 
-          const intentId = intentData.data.id;
+          const oldStock = Number(rows[0].stock) || 0;
+          const newStock = Math.max(oldStock - Number(item.qty), 0);
+          const diff = newStock - oldStock;
 
-          // Create Payment Method
-          const methodRes = await fetch('https://api.paymongo.com/v1/payment_methods', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              data: {
-                attributes: {
-                  type: methods, // gcash or paymaya
-                  billing: { name, email, phone }
-                }
-              }
-            })
-          });
+          await db.promise().query(sqlUpdateStock, [newStock, item.product_ID]);
 
-          const methodData = await methodRes.json();
-          if (!methodData.data) {
-            console.error('[PAYMONGO METHOD ERROR]', methodData);
-            return res.status(400).json({ success: false, message: 'Failed to create payment method' });
-          }
-
-          const methodId = methodData.data.id;
-
-          // Attach method
-          const attachRes = await fetch(`https://api.paymongo.com/v1/payment_intents/${intentId}/attach`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              data: {
-                attributes: {
-                  payment_method: methodId,
-                  return_url: `${process.env.DEFAULT_URL}/users/pet-products?payment=success`
-                }
-              }
-            })
-          });
-
-          const attachData = await attachRes.json();
-          if (!attachData.data) {
-            console.error('[PAYMONGO ATTACH ERROR]', attachData);
-            return res.status(400).json({ success: false, message: 'Failed to attach payment method' });
-          }
-
-          const redirectUrl = attachData.data.attributes.next_action.redirect.url;
-          res.json({
-            success: true,
-            message: 'Order created, proceed to payment',
+          await db.promise().query(sqllistorders, [
             orderId,
-            redirectUrl,
-            warnings: lowStockWarnings
-          });
+            item.product_ID,
+            item.name,
+            item.qty,
+          ]);
 
-        } catch (payErr) {
-          console.error('[PAYMONGO ERROR]', payErr);
-          res.status(500).json({ success: false, message: 'Payment setup failed' });
+          const stockOut = diff < 0 ? Math.abs(diff) : 0;
+          if (stockOut > 0) {
+            await db.promise().query(sqlInsertStockLog, [item.product_ID, 0, stockOut]);
+            console.log(`📦 Logged stock out for ${item.name}: ${stockOut}`);
+          }
+
+          if (newStock === 1) {
+            lowStockWarnings.push(`⚠️ ${item.name} is almost out of stock (only 1 left)!`);
+          } else if (newStock <= 0) {
+            lowStockWarnings.push(`❌ ${item.name} is now out of stock.`);
+          }
+        } catch (itemErr) {
+          console.error(`[DB] Error handling item ${item.name}:`, itemErr);
         }
-      })();
+      }
+    }
+
+    if (methods === 'cod') {
+      return res.json({
+        success: true,
+        message: 'Order placed successfully with Cash on Delivery',
+        orderId,
+        redirectUrl: null,
+        warnings: lowStockWarnings,
+      });
+    }
+
+    const headers = {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      authorization:
+        'Basic ' +
+        Buffer.from(`${process.env.SECRET_KEY_PAYMONGO}:`).toString('base64'),
+    };
+
+    const amountInCentavos = Math.round(Number(amount) * 100);
+
+    const intentRes = await fetch('https://api.paymongo.com/v1/payment_intents', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            amount: amountInCentavos,
+            currency: 'PHP',
+            payment_method_allowed: ['gcash', 'paymaya'],
+            capture_type: 'automatic',
+            statement_descriptor: `Order #${orderId}`,
+          },
+        },
+      }),
+    });
+
+    const intentData = await intentRes.json();
+    if (!intentData.data) {
+      console.error('[PAYMONGO INTENT ERROR]', intentData);
+      return res.status(400).json({ success: false, message: 'Failed to create payment intent' });
+    }
+
+    const intentId = intentData.data.id;
+
+    const methodRes = await fetch('https://api.paymongo.com/v1/payment_methods', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            type: methods,
+            billing: { name, email, phone },
+          },
+        },
+      }),
+    });
+
+    const methodData = await methodRes.json();
+    if (!methodData.data) {
+      console.error('[PAYMONGO METHOD ERROR]', methodData);
+      return res.status(400).json({ success: false, message: 'Failed to create payment method' });
+    }
+
+    const methodId = methodData.data.id;
+
+    const attachRes = await fetch(
+      `https://api.paymongo.com/v1/payment_intents/${intentId}/attach`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: {
+            attributes: {
+              payment_method: methodId,
+              return_url: `${process.env.DEFAULT_URL}/users/pet-products?payment=success`,
+            },
+          },
+        }),
+      }
+    );
+
+    const attachData = await attachRes.json();
+    if (!attachData.data) {
+      console.error('[PAYMONGO ATTACH ERROR]', attachData);
+      return res.status(400).json({ success: false, message: 'Failed to attach payment method' });
+    }
+
+    const redirectUrl = attachData.data.attributes.next_action.redirect.url;
+    res.json({
+      success: true,
+      message: 'Order created, proceed to payment',
+      orderId,
+      redirectUrl,
+      warnings: lowStockWarnings,
     });
   } catch (err) {
     console.error('[SERVER ERROR]', err);

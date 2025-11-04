@@ -27,4 +27,38 @@ router.get('/fetch/users/:uid/:username', (req, res) => {
   });
 });
 
+router.get('/fetch/admin', (req, res) => {
+  const sql = `
+    SELECT COUNT(*) AS total_appointments
+    FROM appointments_tables
+    WHERE set_date = CURDATE()
+  `;
+
+  const sqlTotalPet = `
+    SELECT COUNT(*) AS total_pets
+    FROM petInfos
+  `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error counting today's appointments:", err);
+      return res.status(500).json({ error: "Database error while counting appointments" });
+    }
+
+    db.query(sqlTotalPet, (err2, results2) => {
+      if (err2) {
+        console.error("Error counting pet totals:", err2);
+        return res.status(500).json({ error: "Database error while counting pet totals" });
+      }
+
+      const total = results[0]?.total_appointments || 0;
+      const total2 = results2[0]?.total_pets || 0
+      res.json({
+        total_appointments: total,
+        total_pets: total2,
+      });
+    });
+  });
+})
+
 module.exports = router;

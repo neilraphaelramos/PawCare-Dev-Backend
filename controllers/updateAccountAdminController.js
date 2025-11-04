@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const db = require("../db");
 const router = express.Router();
 const { uploadProfile } = require("../config/multerConfig");
+const cloudinary = require("../config/cloudinaryConfig");
 
 router.post("/", uploadProfile, async (req, res) => {
   let { id, firstName, middleName, lastName, suffix, username, email, phone, password, role } = req.body;
