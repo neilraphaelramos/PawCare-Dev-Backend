@@ -39,6 +39,12 @@ router.get('/fetch/admin', (req, res) => {
     FROM petInfos
   `;
 
+  const sqlLowStock = `
+    SELECT COUNT(*) AS low_stock_count
+    FROM inventory
+    WHERE stock <= 5;
+  `;
+
   db.query(sql, (err, results) => {
     if (err) {
       console.error("Error counting today's appointments:", err);
@@ -51,12 +57,42 @@ router.get('/fetch/admin', (req, res) => {
         return res.status(500).json({ error: "Database error while counting pet totals" });
       }
 
-      const total = results[0]?.total_appointments || 0;
-      const total2 = results2[0]?.total_pets || 0
-      res.json({
-        total_appointments: total,
-        total_pets: total2,
+      db.query(sqlLowStock, (err3, results3) => {
+        if (err3) {
+          console.error("Error counting pet totals:", err3);
+          return res.status(500).json({ error: "Database error while counting pet totals" });
+        }
+        const total = results[0]?.total_appointments || 0;
+        const total2 = results2[0]?.total_pets || 0
+        const total3 = results3[0]?.low_stock_count || 0;
+        res.json({
+          total_appointments: total,
+          total_pets: total2,
+          low_stock_count: total3,
+        });
       });
+    });
+  });
+
+  router.get("/fetch/unreadcount/:uid", (req, res) => {
+    const { uid } = req.params;
+
+    const sql = `
+    SELECT COUNT(*) AS unreadCount
+    FROM Vet_Admin_notification n
+    LEFT JOIN Notification_Read_Status r 
+      ON n.notify_id = r.notify_id AND r.UID = ?
+    WHERE COALESCE(r.isRead, 0) = 0
+  `;
+
+    db.query(sql, [uid], (err, rows) => {
+      if (err) {
+        console.error("❌ Error fetching unread count:", err);
+        return res.status(500).json({ error: err });
+      }
+
+      const count = rows[0]?.unreadCount || 0;
+      res.json({ unreadCount: count });
     });
   });
 })

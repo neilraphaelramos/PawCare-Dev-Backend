@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const checkLowStock = require('../utils/inventoryAlert');
 
 router.get('/fetch', (req, res) => {
   const sql = `
@@ -179,6 +180,8 @@ router.post('/payment_setorder', async (req, res) => {
           console.error(`[DB] Error handling item ${item.name}:`, itemErr);
         }
       }
+
+      await checkLowStock();
     }
 
     if (methods === 'cod') {

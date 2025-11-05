@@ -40,4 +40,78 @@ router.get("/api/:uid", (req, res) => {
   });
 });
 
+router.get("/vetadminapi", (req, res) => {
+  db.query("SELECT * FROM Vet_Admin_notification ORDER BY notify_ID DESC", (err, rows) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json(rows);
+  });
+});
+
+router.post("/vetadminapi/post", (req, res) => {
+  const { title_notify, type_notify, details } = req.body;
+
+  const insertNofity = `
+    INSERT INTO Vet_Admin_notification 
+    (title_notify, type_notify, details, notify_date )
+    VALUES (?, ?, ?, NOW())
+  `
+
+  db.query(insertNofity, [title_notify, type_notify, details], (err) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    res.status(200).json({ success: true, message: "Notification saved." });
+  });
+});
+
+router.get("/vetadminapi/:uid", (req, res) => {
+  const { uid } = req.params;
+  const sql = `
+    SELECT 
+      n.notify_id,
+      n.title_notify,
+      n.type_notify,
+      n.details,
+      n.notify_date,
+      COALESCE(r.isRead, 0) AS isRead
+    FROM Vet_Admin_notification n
+    LEFT JOIN Notification_Read_Status r 
+      ON n.notify_id = r.notify_id AND r.UID = ?
+    ORDER BY n.notify_id DESC
+  `;
+  db.query(sql, [uid], (err, rows) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json(rows);
+  });
+});
+
+router.post("/vetadminapi/setread", (req, res) => {
+  const { notify_id, UID } = req.body;
+  const sql = `
+    INSERT INTO Notification_Read_Status (notify_id, UID, isRead, read_date)
+    VALUES (?, ?, 1, NOW())
+    ON DUPLICATE KEY UPDATE isRead = 1, read_date = NOW()
+  `;
+  db.query(sql, [notify_id, UID], (err) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json({ success: true });
+  });
+});
+
+router.post("/vetadminapi/setallread", (req, res) => {
+  const { UID } = req.body;
+  const sql = `
+    INSERT INTO Notification_Read_Status (notify_id, UID, isRead, read_date)
+    SELECT n.notify_id, ?, 1, NOW()
+    FROM Vet_Admin_notification n
+    ON DUPLICATE KEY UPDATE isRead = 1, read_date = NOW()
+  `;
+  db.query(sql, [UID], (err) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json({ success: true });
+  });
+});
+
 module.exports = router;

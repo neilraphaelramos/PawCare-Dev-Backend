@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../db');
 const { uploadInventory } = require('../config/multerConfig');
 const cloudinary = require("../config/cloudinaryConfig");
+const checkLowStock = require('../utils/inventoryAlert');
 
 router.get('/fetch', (req, res) => {
     const sql = "SELECT * FROM inventory";
@@ -84,8 +85,6 @@ router.put("/update/:id", uploadInventory, async (req, res) => {
         if (newPhoto) {
             if (oldPhoto) {
                 try {
-                    // Extract Cloudinary public ID from URL
-                    // Example: https://res.cloudinary.com/demo/image/upload/v123456/inventory_images/photo-123.webp
                     const segments = oldPhoto.split("/");
                     const filename = segments.pop(); // "photo-123.webp"
                     const folder = segments.includes("inventory_images")
@@ -140,6 +139,8 @@ router.put("/update/:id", uploadInventory, async (req, res) => {
                 `📦 Stock movement logged → Product ${id}: stockIn=${stockIn}, stockOut=${stockOut}`
             );
         }
+
+        checkLowStock();
 
         res.json({
             success: true,
@@ -205,7 +206,5 @@ router.delete("/delete/:id", async (req, res) => {
             .json({ success: false, error: "Database or Cloudinary error" });
     }
 });
-
-module.exports = router;
 
 module.exports = router;

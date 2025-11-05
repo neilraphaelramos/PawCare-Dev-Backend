@@ -3,7 +3,6 @@ const router = express.Router();
 const db = require('../db');
 const { uploadMedicalRecord } = require('../config/multerConfig');
 const formatDate = require('../utils/formatDate');
-const cloudinary = require("../config/cloudinaryConfig");
 
 router.get('/fetch', (req, res) => {
   const sql = `SELECT * FROM pet_medical_records`;
@@ -136,65 +135,22 @@ router.post('/add_pet', (req, res) => {
 router.put('/edit_pet/:id', uploadMedicalRecord, async (req, res) => {
   const { id } = req.params;
   const {
-    owner_name,
-    user_name,
-    pet_name,
-    species,
-    pet_age,
-    pet_gender,
     pet_condition,
     last_visit,
     diagnosis
   } = req.body;
 
   try {
-    const [current] = await new Promise((resolve, reject) => {
-      db.query(
-        'SELECT photo_pet FROM pet_medical_records WHERE id_medical_record = ?',
-        [id],
-        (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
-        }
-      );
-    });
-
-    let newPhotoUrl = current?.photo_pet;
-
-    if (req.file) {
-      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'pet_records'
-      });
-
-      newPhotoUrl = uploadResult.secure_url;
-
-      if (current?.photo_pet) {
-        const publicIdMatch = current.photo_pet.match(/pet_records\/([^/.]+)/);
-        if (publicIdMatch) {
-          const publicId = `pet_records/${publicIdMatch[1]}`;
-          await cloudinary.uploader.destroy(publicId);
-        }
-      }
-    }
-
     const sql = `
       UPDATE pet_medical_records
-      SET owner_name=?, owner_username=?, pet_name=?, species=?, pet_age=?, pet_gender=?, 
-          pet_condition=?, last_visit=?, diagnosis=?, photo_pet=?
+      SET pet_condition=?, last_visit=?, diagnosis=?
       WHERE id_medical_record=?
     `;
 
     const values = [
-      owner_name,
-      user_name,
-      pet_name,
-      species,
-      pet_age,
-      pet_gender,
       pet_condition,
       last_visit,
       diagnosis,
-      newPhotoUrl,
       id
     ];
 
