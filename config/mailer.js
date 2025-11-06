@@ -1,14 +1,39 @@
-const nodemailer = require('nodemailer');
+// mailer.js
+const emailjs = require('@emailjs/nodejs');
 require('dotenv').config();
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,           
-  secure: false,          
-  auth: {
-    user: process.env.EMAIL,
-    pass: process.env.APP_PASS,
-  },
-});
+const sendEmail = async ({ toEmail, firstName, verifyLink }) => {
+  if (!toEmail) {
+    throw new Error('Recipient email is empty');
+  }
 
-module.exports = transporter;
+  const templateParams = {
+    user_name: firstName,
+    user_email: toEmail,   
+    verify_link: verifyLink,
+    website_link: process.env.DEFAULT_URL,
+    company_name: 'PawCare',
+    support_email: process.env.SUPPORT_EMAIL || 'support@pawcare.com',
+  };
+
+  try {
+    await emailjs.send(
+      process.env.EMAIL_JS_SERVICE_ID,
+      process.env.EMAIL_JS_TEMPLATE_ID,
+      templateParams,
+      {
+        publicKey: process.env.EMAIL_JS_PUBLIC_KEY,
+        privateKey: process.env.EMAIL_JS_PRIVATE_KEY,
+      }
+    );
+
+  } catch (err) {
+    console.error(
+      'EmailJS sending error:',
+      err.response ? err.response.data : err.message
+    );
+    throw err;
+  }
+};
+
+module.exports = sendEmail;

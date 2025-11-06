@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@emailjs/nodejs": "^5.0.2",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.0",
@@ -28,7 +29,6 @@
     "mysql": "^2.18.1",
     "mysql2": "^3.15.3",
     "ngrok": "^5.0.0-beta.2",
-    "nodemailer": "^7.0.9",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
