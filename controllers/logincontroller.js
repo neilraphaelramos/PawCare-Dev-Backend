@@ -34,7 +34,13 @@ router.post("/", (req, res) => {
         }
 
         const user = results[0];
-        console.log("[LOGIN] User found:", user.email, "Role:", user.userRole);
+
+        if (user.isverified === 0) {
+            console.warn("[LOGIN] User not verified:", email);
+            return res.status(403).json({
+                error: "Please check your email to verify and login your account",
+            });
+        }
 
         bcrypt.compare(password, user.password, (bcryptErr, isMatch) => {
             if (bcryptErr) {
