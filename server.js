@@ -31,6 +31,7 @@ const aiChatController = require('./AIChatController/aiChatController');
 const metricDashboardRoute = require('./controllers/metricController');
 const petInfosRoute = require('./controllers/petInfosController');
 const reportsRoute = require('./controllers/reportsController');
+const resetPasswordRoute = require('./controllers/resetPasswordController');
 
 const app = express();
 const server = http.createServer(app);
@@ -73,6 +74,7 @@ app.use('/ask-ai', aiChatController);
 app.use('/metric_dashboard', metricDashboardRoute);
 app.use('/pet_infos', petInfosRoute);
 app.use('/reports', reportsRoute);
+app.use('/reset-password-request', resetPasswordRoute);
 
 const PORT = process.env.PORT;
 server.listen(PORT, () => {
