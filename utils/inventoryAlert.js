@@ -30,8 +30,8 @@ async function checkLowStock() {
 
             await db.promise().query(
                 `INSERT INTO Vet_Admin_notification 
-                (title_notify, type_notify, details, notify_date, isRead)
-                VALUES (?, ?, ?, ?, 0)`,
+                (title_notify, type_notify, details, notify_date)
+                VALUES (?, ?, ?, ?)`,
                 [title, type, details, date]
             );
 
