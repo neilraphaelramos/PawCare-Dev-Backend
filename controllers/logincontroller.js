@@ -6,7 +6,9 @@ require("dotenv").config();
 
 const router = express.Router();
 
-const PRIVATE_KEY = null;
+const privateKey = Buffer.from(process.env.SECRET_PRIVATE_KEY_BASE64, 'base64').toString('utf8');
+
+const PRIVATE_KEY = privateKey;
 const JITSI_APP_ID = process.env.JAPP_ID;
 const JITSI_APP_API_KEY = process.env.JAAPI_KEY;
 

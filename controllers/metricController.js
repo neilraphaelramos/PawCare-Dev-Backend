@@ -8,6 +8,13 @@ router.get('/fetch/users/:uid/:username', (req, res) => {
   const appointQuery = `SELECT COUNT(*) AS totalAppointments FROM appointments_tables WHERE UID = ?`;
   const petQuery = `SELECT COUNT(*) AS totalPets FROM petInfos WHERE owner_username = ?`;
   const notifyQuery = `SELECT COUNT(*) AS totalNotification from notification WHERE UID = ?`
+  const visitQuery = `
+    SELECT COUNT(*) AS total_visits
+    FROM visit_history vh
+    INNER JOIN pet_medical_records pmr
+      ON vh.id_pet_medical_records = pmr.id_medical_record
+    WHERE pmr.owner_username = ?;
+  `;
   db.query(appointQuery, [uid], (err1, appointRes) => {
     if (err1) return res.status(500).json({ error: 'Failed to fetch appointments' });
 
@@ -17,12 +24,17 @@ router.get('/fetch/users/:uid/:username', (req, res) => {
       db.query(notifyQuery, [uid], (err3, notifyRes) => {
         if (err3) return res.status(500).json({ error: 'Failed to fetch notification' });
 
-        res.json({
-          totalAppointments: appointRes[0].totalAppointments,
-          totalPets: petRes[0].totalPets,
-          totalNotify: notifyRes[0].totalNotification
+        db.query(visitQuery, [username], (err4, visitRes) => {
+          if (err4) return res.status(500).json({ error: 'Failed to fetch visit records' });
+
+          res.json({
+            totalAppointments: appointRes[0].totalAppointments,
+            totalPets: petRes[0].totalPets,
+            totalNotify: notifyRes[0].totalNotification,
+            totalVisit: visitRes[0].total_visits
+          });
         });
-      })
+      });
     });
   });
 });
