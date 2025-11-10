@@ -347,4 +347,16 @@ router.delete('/delete/:id', (req, res) => {
   });
 });
 
+router.get('/fetch/services', (req, res) => {
+  const sql = `SELECT title FROM services`;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching services:", err);
+      return res.status(500).json({ error: "Failed to fetch services" });
+    }
+    res.json(results);
+  });
+});
+
 module.exports = router;

@@ -48,7 +48,6 @@ router.post('/submit', uploadConsultation, async (req, res) => {
   }
 });
 
-
 // 📥 Route: Fetch all consultations
 router.get('/', (req, res) => {
   const fetchOC = `SELECT * FROM online_consultation_table`;
@@ -80,5 +79,6 @@ router.get('/', (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 module.exports = router;

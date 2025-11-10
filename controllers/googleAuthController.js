@@ -89,7 +89,7 @@ router.post("/", async (req, res) => {
                         municipality: user.municipality,
                         barangay: user.barangay,
                         zipCode: user.zipCode,
-                        pic: user.profile_Pic ? Buffer.from(user.profile_Pic).toString("base64") : null,
+                        pic: user.profile_Pic,
                         bio: user.bio,
                     };
 
@@ -182,7 +182,7 @@ router.post("/", async (req, res) => {
                                 municipality: user.municipality,
                                 barangay: user.barangay,
                                 zipCode: user.zipCode,
-                                pic: user.profile_Pic ? Buffer.from(user.profile_Pic).toString("base64") : null,
+                                pic: user.profile_Pic,
                                 bio: user.bio,
                             };
 

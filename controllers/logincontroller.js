@@ -76,9 +76,6 @@ router.post("/", (req, res) => {
             let jitsiToken = null;
             if (user.userRole === "Veterinarian") {
                 console.log("[JITSI] Generating token for vet:", user.email);
-                console.log("[JITSI] ENV APP_ID:", JITSI_APP_ID);
-                console.log("[JITSI] ENV API_KEY:", JITSI_APP_API_KEY);
-                console.log("[JITSI] PRIVATE_KEY exists?", !!PRIVATE_KEY);
 
                 try {
                     const payload = {
@@ -102,8 +99,6 @@ router.post("/", (req, res) => {
                         exp: Math.floor(Date.now() / 1000) + 3 * 60 * 60, // 3 hours
                         nbf: Math.floor(Date.now() / 1000) - 10,
                     };
-
-                    console.log("[JITSI] Payload:", JSON.stringify(payload, null, 2));
 
                     jitsiToken = jwt.sign(payload, PRIVATE_KEY, {
                         algorithm: "RS256",
