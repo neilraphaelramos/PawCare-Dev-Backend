@@ -4,7 +4,7 @@ const db = require('../db');
 const { uploadConsultation } = require('../config/multerConfig');
 
 router.post('/submit', uploadConsultation, async (req, res) => {
-  const { owner_name, pet_name, pet_type, pet_species, concern_description, consult_type } = req.body;
+  const { owner_name, pet_name, pet_type, pet_species, concern_description, consult_type, set_date, set_time } = req.body;
   const channel_consult_ID = "consult" + Date.now();
 
   try {
@@ -15,8 +15,8 @@ router.post('/submit', uploadConsultation, async (req, res) => {
     const sqlScript = `
       INSERT INTO online_consultation_table
         (channel_consult_ID, Owner_name, pet_name, pet_type, pet_species,
-         payment_proof, concern_text, type_consult, fileType)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         payment_proof, concern_text, type_consult, fileType, set_date, set_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     db.query(sqlScript, [
@@ -28,7 +28,9 @@ router.post('/submit', uploadConsultation, async (req, res) => {
       fileUrl, // ✅ Cloudinary URL
       concern_description,
       consult_type,
-      fileType
+      fileType,
+      set_date,
+      set_time
     ], (err) => {
       if (err) {
         console.error("Database error:", err);
@@ -70,6 +72,11 @@ router.get('/', (req, res) => {
         ownerName: item.owner_name,
         paymentProof: item.payment_proof,
         fileType: item.fileType,
+        setDate: item.set_date
+          ? new Date(item.set_date).toLocaleDateString('en-CA')
+          : null,
+        setTime: item.set_time,
+        status: item.status,
       }));
 
       res.json({ fetchData: formattedResults });
