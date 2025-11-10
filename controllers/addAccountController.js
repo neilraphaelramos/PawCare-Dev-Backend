@@ -1,63 +1,121 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const db = require("../db");
+const { uploadProfile } = require("../config/multerConfig");
+const sendEmail = require("../config/mailer"); // EmailJS or any mailer function
+require("dotenv").config();
 
 const router = express.Router();
 
-router.post("/", async (req, res) => {
-    const { firstName, middleName, lastName, suffix, username, email, phone, password, role, image } = req.body;
+// Add new admin/user account with optional profile pic and email verification
+router.post("/", uploadProfile, async (req, res) => {
+  try {
+    const {
+      firstName,
+      middleName,
+      lastName,
+      suffix,
+      username,
+      email,
+      phone,
+      role,
+      password,
+    } = req.body;
 
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
+    // Required fields
+    if (!firstName || !username || !email || !password || !role) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
 
-        let setRole;
-        if (role === 'User') {
-            setRole = "User";
-        } else if (role === 'Admin') {
-            setRole = "Admin"
-        } else {
-            setRole = "Veterinarian";
-        }
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-        let imageBuffer = null;
-        if (image) {
-            const base64Data = image.replace(/^data:.+;base64,/, "");
-            imageBuffer = Buffer.from(base64Data, "base64");
-        }
+    // Determine role
+    let setRole;
+    if (role === "User") setRole = "User";
+    else if (role === "Admin") setRole = "Admin";
+    else setRole = "Veterinarian";
 
-        const sql_credentials = `
-        INSERT INTO user_credentials (userName, email, password, userRole)
-        VALUES (?, ?, ?, ?)
-      `;
+    // Profile picture path (optional)
+    let imageUrl = null;
+    if (req.file && req.file.path) {
+      imageUrl = req.file.path;
+    }
 
-        const sql_informations = `
-        INSERT INTO user_infos 
+    // Insert credentials
+    const sql_credentials = `
+      INSERT INTO user_credentials (userName, email, password, userRole, isverified, authType)
+      VALUES (?, ?, ?, ?, 0, 0)
+    `;
+    const credentialValues = [username, email, hashedPassword, setRole];
+
+    db.query(sql_credentials, credentialValues, (err, result) => {
+      if (err) {
+        console.error("DB credentials insert error:", err);
+        return res.status(500).json({ error: "Add Account failed (credentials)" });
+      }
+
+      const userId = result.insertId;
+
+      // Insert user info
+      const sql_informations = `
+        INSERT INTO user_infos
         (user_id, firstName, middleName, lastName, suffix, phoneNumber, profile_Pic)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `;
+      const infoValues = [
+        userId,
+        firstName,
+        middleName || null,
+        lastName || null,
+        suffix || null,
+        phone || null,
+        imageUrl,
+      ];
 
-        db.query(sql_credentials, [username, email, hashedPassword, setRole], (err, result) => {
-            if (err) {
-                console.error('DB credentials insert error:', err);
-                return res.status(500).json({ error: 'Add Account failed (credentials)' });
-            }
+      db.query(sql_informations, infoValues, (err2) => {
+        if (err2) {
+          console.error("DB infos insert error:", err2);
+          return res.status(500).json({ error: "Add Account failed (infos)" });
+        }
 
-            const info_values = [result.insertId, firstName, middleName, lastName, suffix, phone, imageBuffer];
+        // Generate verification token
+        const token = crypto.randomBytes(32).toString("hex");
+        const sql_token = `INSERT INTO user_verification (user_id, token) VALUES (?, ?)`;
 
-            db.query(sql_informations, info_values, (err2) => {
-                if (err2) {
-                    console.error('DB infos insert error:', err2);
-                    return res.status(500).json({ error: 'Add Account failed (infos)' });
-                }
+        db.query(sql_token, [userId, token], async (err3) => {
+          if (err3) {
+            console.error("Token insert error:", err3);
+            return res.status(500).json({ error: "Add Account failed (token)" });
+          }
 
-                return res.status(200).json({ message: 'Add Account Successful' });
+          const verifyLink = `${process.env.DEFAULT_URL}/verify?token=${token}`;
+
+          try {
+            await sendEmail({
+              toEmail: email,
+              firstName,
+              verifyLink,
             });
-        });
 
-    } catch (err) {
-        console.error('Server error:', err);
-        res.status(500).json({ error: 'Server error' });
-    }
+            return res.status(200).json({
+              message:
+                "Account added successfully. Verification email sent to user.",
+            });
+          } catch (emailErr) {
+            console.error("Email sending error:", emailErr);
+            return res.status(500).json({
+              error: "Account added, but failed to send verification email",
+            });
+          }
+        });
+      });
+    });
+  } catch (err) {
+    console.error("Server error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
 module.exports = router;
