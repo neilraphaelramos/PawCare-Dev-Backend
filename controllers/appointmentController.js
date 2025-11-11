@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { da } = require('date-fns/locale');
 
 router.post('/', (req, res) => {
   const { set_date, set_time, owner_name, user_id } = req.body;
