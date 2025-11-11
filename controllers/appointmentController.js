@@ -14,7 +14,7 @@ router.post('/', (req, res) => {
 
 router.get('/user/:uid', (req, res) => {
   const { uid } = req.params;
-  const sql = 'SELECT * FROM appointments_tables WHERE UID = ? ORDER BY set_date ASC, set_time ASC';
+  const sql = 'SELECT * FROM appointments_tables WHERE UID = ? ORDER BY id_appoint DESC';
   db.query(sql, [uid], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
