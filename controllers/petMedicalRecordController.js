@@ -359,4 +359,22 @@ router.get('/fetch/services', (req, res) => {
   });
 });
 
+router.get("/summary-service-demand/services", (req, res) => {
+  const sql = `SELECT service_type, COUNT(*) AS demand_count
+               FROM visit_history
+               WHERE
+                MONTH(date_visit) = MONTH(CURRENT_DATE())
+                AND YEAR(date_visit) = YEAR(CURRENT_DATE())
+               GROUP BY service_type
+               `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching service demand summary:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    res.json({results});
+  });
+});
+
 module.exports = router;

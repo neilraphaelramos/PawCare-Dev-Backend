@@ -25,6 +25,7 @@ router.get("/monthly", async (req, res) => {
           o.order_date,
           o.total,
           o.order_status,
+          o.paymentStatus,
           o.methodPayments,
           GROUP_CONCAT(
             CONCAT(oi.product_name, ' (x', oi.quantity, ')')

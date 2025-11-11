@@ -14,6 +14,7 @@ router.get('/fetch', (req, res) => {
       o.order_status,
       o.cancel_requested,
       o.methodPayments,
+      o.paymentStatus,
       o.payment_intent_id,   
       i.product_name, 
       i.quantity
@@ -97,6 +98,16 @@ router.put('/update_status/:id', (req, res) => {
       return res.status(500).json({ error: err.message });
     }
     res.json({ message: 'Order Status updated' });
+  });
+});
+
+router.put("/update_payment_status/:id", (req, res) => {
+  const { id } = req.params;
+  const { paymentStatus } = req.body;
+  const sql = "UPDATE orders SET paymentStatus = ? WHERE id_order = ?";
+  db.query(sql, [paymentStatus, id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
   });
 });
 
@@ -391,9 +402,9 @@ router.post("/confirm_order", async (req, res) => {
 
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
-       (uid, customer_name, customer_address, order_date, total, order_status, methodPayments, payment_intent_id)
+       (uid, customer_name, customer_address, order_date, total, order_status, methodPayments, paymentStatus, payment_intent_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [uid, name, address, date, amount, "Paid", "qrph", payment_intent_id || null]
+      [uid, name, address, date, amount, "Shipped", "qrph", "Paid", payment_intent_id || null]
     );
 
     const orderId = orderResult.insertId;
@@ -618,6 +629,31 @@ router.get('/fetch/user_order/:id', (req, res) => {
     }
 
     res.json(rows);
+  });
+});
+
+router.get("/summary-orders/categories", (req, res) => {
+  const sql = `
+    SELECT 
+      i.item_group AS category,
+      COUNT(oi.id_item) AS orders
+    FROM order_items oi
+    JOIN inventory i ON oi.product_ID = i.product_ID
+    JOIN orders o ON oi.order_id = o.id_order
+    WHERE 
+      o.order_status != 'Cancelled'
+      AND MONTH(o.order_date) = MONTH(CURDATE())
+      AND YEAR(o.order_date) = YEAR(CURDATE())
+    GROUP BY i.item_group
+    ORDER BY i.item_group ASC;
+  `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching category summary:", err);
+      return res.status(500).json({ success: false, error: err });
+    }
+    res.json({ success: true, data: results });
   });
 });
 

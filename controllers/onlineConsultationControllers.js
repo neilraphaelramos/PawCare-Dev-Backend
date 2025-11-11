@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { uploadConsultation } = require('../config/multerConfig');
+const { is } = require('date-fns/locale');
 
 router.post('/submit', uploadConsultation, async (req, res) => {
   const { owner_name, user_id, pet_name, pet_type, pet_species, concern_description, consult_type, set_date, set_time } = req.body;
@@ -150,6 +151,45 @@ router.get('/upcoming-online-consult/fetch/:id', (req, res) => {
     console.error("Server error:", err);
     res.status(500).json({ error: "Server error" });
   }
+});
+
+router.get('/details/consultation/:date', (req, res) => {
+  const { date } = req.params; // date in YYYY-MM-DD
+  const sql = 'SELECT * FROM online_consultation_table WHERE set_date = ?';
+  db.query(sql, [date], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const formattedResults = results.map((item) => ({
+      id: item.consult_id,
+      petName: item.pet_name,
+      petType: item.pet_type,
+      petSpecies: item.pet_species,
+      concern: item.concern_text,
+      ownerName: item.owner_name,
+      setDate: item.set_date
+        ? new Date(item.set_date).toLocaleDateString('en-CA')
+        : null,
+      setTime: item.set_time,
+      status: item.status,
+      isDone: item.isDone,
+    }));
+
+    res.json({ fetchData: formattedResults });
+  });
+});
+
+router.put('/status-update-consultation/:id', (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body; 
+
+  const sql = 'UPDATE online_consultation_table SET isDone = ? WHERE consult_id = ?';
+  db.query(sql, [status, id], (err, result) => {
+    if (err) {
+      console.error("Error updating status:", err);
+      return res.status(500).json({ success: false, error: err });
+    }
+    res.json({ success: true });
+  });
 });
 
 module.exports = router;
