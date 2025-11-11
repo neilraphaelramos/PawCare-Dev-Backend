@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { uploadConsultation } = require('../config/multerConfig');
-const { is } = require('date-fns/locale');
 
 router.post('/submit', uploadConsultation, async (req, res) => {
   const { owner_name, user_id, pet_name, pet_type, pet_species, concern_description, consult_type, set_date, set_time } = req.body;
