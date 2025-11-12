@@ -50,107 +50,107 @@ router.post("/add", uploadInventory, (req, res) => {
 
 // Update inventory item
 router.put("/update/:id", uploadInventory, async (req, res) => {
-    const { id } = req.params;
-    const {
-        item_code,
-        name,
-        item_group,
-        date_purchase,
-        date_expiration,
-        stock,
-        price,
-        unit,
-    } = req.body;
+  const { id } = req.params;
+  const {
+    item_code,
+    name,
+    item_group,
+    date_purchase,
+    date_expiration,
+    stock,
+    price,
+    unit,
+  } = req.body;
 
-    const newPhoto = req.file ? req.file.path : null;
+  const newPhoto = req.file ? req.file.path : null;
 
-    try {
-        // Step 1: Get the old photo URL
-        const [rows] = await db.promise().query(
-            "SELECT photo, stock FROM inventory WHERE product_ID = ?",
-            [id]
-        );
+  try {
+    // Step 1: Get the old photo & stock
+    const [rows] = await db.promise().query(
+      "SELECT photo, stock FROM inventory WHERE product_ID = ?",
+      [id]
+    );
 
-        if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: "Item not found" });
-        }
-
-        const oldPhoto = rows[0].photo;
-        const oldStock = rows[0].stock;
-        const newStock = stock;
-        const diff = newStock - oldStock;
-        let photoToSave = oldPhoto;
-
-        // Step 2: If new photo uploaded, delete the old one on Cloudinary
-        if (newPhoto) {
-            if (oldPhoto) {
-                try {
-                    const segments = oldPhoto.split("/");
-                    const filename = segments.pop(); // "photo-123.webp"
-                    const folder = segments.includes("inventory_images")
-                        ? "inventory_images"
-                        : ""; // Cloudinary folder name
-                    const publicId = `${folder}/${filename.split(".")[0]}`;
-
-                    await cloudinary.uploader.destroy(publicId);
-                    console.log("🗑 Deleted old Cloudinary image:", publicId);
-                } catch (err) {
-                    console.warn("⚠️ Could not delete old Cloudinary image:", err.message);
-                }
-            }
-
-            photoToSave = newPhoto;
-        }
-
-        const sql = `
-            UPDATE inventory 
-            SET item_code=?, photo=?, name=?, item_group=?, date_purchase=?, date_expiration=?, stock=?, price=?, unit=? 
-            WHERE product_ID=?
-        `;
-
-        const [result] = await db.promise().query(sql, [
-            item_code || null,
-            photoToSave || null,
-            name || null,
-            item_group || null,
-            date_purchase || null,
-            date_expiration || null,
-            stock || 0,
-            price || 0,
-            unit || null,
-            id,
-        ]);
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ success: false, message: "Item not found" });
-        }
-
-        if (diff !== 0) {
-            const stockIn = diff > 0 ? diff : 0;
-            const stockOut = diff < 0 ? Math.abs(diff) : 0;
-
-            const logSql = `
-                INSERT INTO inventory_stock_in_out (product_ID, stockIn, stockOut)
-                VALUES (?, ?, ?)
-            `;
-
-            await db.promise().query(logSql, [id, stockIn, stockOut]);
-            console.log(
-                `📦 Stock movement logged → Product ${id}: stockIn=${stockIn}, stockOut=${stockOut}`
-            );
-        }
-
-        checkLowStock();
-
-        res.json({
-            success: true,
-            message: "Item updated successfully",
-            photo: photoToSave,
-        });
-    } catch (err) {
-        console.error("❌ Error updating inventory:", err);
-        res.status(500).json({ success: false, error: "Database or Cloudinary error" });
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Item not found" });
     }
+
+    const oldPhoto = rows[0].photo;
+    const oldStock = Number(rows[0].stock);
+    const newStock = Number(stock); // ensure numeric
+    const diff = newStock - oldStock;
+
+    let photoToSave = oldPhoto;
+
+    // Step 2: Handle Cloudinary image replacement
+    if (newPhoto) {
+      if (oldPhoto) {
+        try {
+          const segments = oldPhoto.split("/");
+          const filename = segments.pop(); // e.g. "photo-123.webp"
+          const folder = segments.includes("inventory_images")
+            ? "inventory_images"
+            : "";
+          const publicId = `${folder}/${filename.split(".")[0]}`;
+
+          await cloudinary.uploader.destroy(publicId);
+          console.log("🗑 Deleted old Cloudinary image:", publicId);
+        } catch (err) {
+          console.warn("⚠️ Could not delete old Cloudinary image:", err.message);
+        }
+      }
+      photoToSave = newPhoto;
+    }
+
+    // Step 3: Update the inventory item
+    const sql = `
+      UPDATE inventory 
+      SET item_code=?, photo=?, name=?, item_group=?, date_purchase=?, date_expiration=?, stock=?, price=?, unit=? 
+      WHERE product_ID=?
+    `;
+
+    const [result] = await db.promise().query(sql, [
+      item_code || null,
+      photoToSave || null,
+      name || null,
+      item_group || null,
+      date_purchase || null,
+      date_expiration || null,
+      newStock || 0,
+      Number(price) || 0,
+      unit || null,
+      id,
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Item not found" });
+    }
+
+    // Step 4: Log stock movement
+    if (diff !== 0) {
+      const stockIn = diff > 0 ? diff : 0;
+      const stockOut = diff < 0 ? Math.abs(diff) : 0;
+
+      const logSql = `
+        INSERT INTO inventory_stock_in_out (product_ID, stockIn, stockOut)
+        VALUES (?, ?, ?)
+      `;
+      await db.promise().query(logSql, [id, stockIn, stockOut]);
+      console.log(`📦 Stock movement logged → Product ${id}: stockIn=${stockIn}, stockOut=${stockOut}`);
+    }
+
+    // Step 5: Check low stock (and wait for completion)
+    await checkLowStock(); // 👈 must be awaited
+
+    res.json({
+      success: true,
+      message: "Item updated successfully",
+      photo: photoToSave,
+    });
+  } catch (err) {
+    console.error("❌ Error updating inventory:", err);
+    res.status(500).json({ success: false, error: "Database or Cloudinary error" });
+  }
 });
 
 // Delete inventory item
