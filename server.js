@@ -32,6 +32,7 @@ const metricDashboardRoute = require('./controllers/metricController');
 const petInfosRoute = require('./controllers/petInfosController');
 const reportsRoute = require('./controllers/reportsController');
 const resetPasswordRoute = require('./controllers/resetPasswordController');
+const consultMessageRoute = require('./controllers/consultMessagesController');
 
 const app = express();
 const server = http.createServer(app);
@@ -75,6 +76,7 @@ app.use('/metric_dashboard', metricDashboardRoute);
 app.use('/pet_infos', petInfosRoute);
 app.use('/reports', reportsRoute);
 app.use('/reset-password-request', resetPasswordRoute);
+app.use('/consult_messages', consultMessageRoute);
 
 const PORT = process.env.PORT;
 server.listen(PORT, () => {
