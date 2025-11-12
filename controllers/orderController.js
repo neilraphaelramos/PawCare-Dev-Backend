@@ -171,6 +171,8 @@ router.post("/create_cod_order", async (req, res) => {
         );
     }
 
+    await checkLowStock();
+
     res.json({
       success: true,
       message: "✅ COD order created successfully.",
@@ -429,7 +431,7 @@ router.post("/confirm_order", async (req, res) => {
     console.error("[Confirm Order Error]", err);
     res.status(500).json({ success: false, message: "Server error confirming order." });
   } finally {
-    checkLowStock();
+    await checkLowStock();
     connection.release();
   }
 });
