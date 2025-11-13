@@ -43,6 +43,8 @@ router.get('/:userId', (req, res) => {
       o.order_date, 
       o.total, 
       o.order_status,
+      o.paymentStatus,
+      o.methodPayments,
       i.product_name, 
       i.quantity
     FROM orders o
@@ -68,6 +70,8 @@ router.get('/:userId', (req, res) => {
           customer_name: row.customer_name,
           customer_address: row.customer_address,
           order_date: row.order_date,
+          method: row.methodPayments,
+          status: row.paymentStatus,
           total: row.total,
           order_status: row.order_status,
           items: []
