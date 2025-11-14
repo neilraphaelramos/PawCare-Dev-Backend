@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { sq } = require('date-fns/locale');
 
 const connectedUsers = new Map();
 
