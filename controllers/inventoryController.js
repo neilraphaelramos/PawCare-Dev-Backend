@@ -27,7 +27,7 @@ router.post("/add", uploadInventory, (req, res) => {
     const sql = `
     INSERT INTO inventory 
     (item_code, photo, name, item_group, date_purchase, date_expiration, amount, stock, price, unit) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
     db.query(sql, [item_code, photo, name, item_group, date_purchase, date_expiration, amount, stock, price, unit], (err, result) => {
         if (err) {

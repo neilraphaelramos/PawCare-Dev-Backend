@@ -409,7 +409,7 @@ router.post("/confirm_order", async (req, res) => {
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
        (uid, customer_name, customer_address, order_date, total, order_status, methodPayments, paymentStatus, payment_intent_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [uid, name, address, date, amount, "Shipped", "qrph", "Paid", payment_intent_id || null]
     );
 

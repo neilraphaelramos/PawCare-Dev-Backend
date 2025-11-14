@@ -2,20 +2,23 @@ const express = require("express");
 const db = require("../db");
 const router = express.Router();
 
-router.get("/monthly", async (req, res) => {
-  const { month, year } = req.query;
+router.get("/range", async (req, res) => {
+  const { start_date, end_date } = req.query;
 
-  if (!month || !year)
-    return res.status(400).json({ error: "Month and year are required" });
+  if (!start_date || !end_date)
+    return res.status(400).json({ error: "Start date and end date are required" });
 
   try {
+    const start = new Date(start_date);
+    const end = new Date(end_date);
+
     const queries = {
       orders_summary: `
         SELECT 
           COUNT(*) AS total_orders,
           SUM(total) AS total_revenue
         FROM orders
-        WHERE MONTH(order_date) = ? AND YEAR(order_date) = ?;
+        WHERE order_date BETWEEN ? AND ?
       `,
       orders_details: `
         SELECT 
@@ -33,19 +36,19 @@ router.get("/monthly", async (req, res) => {
           ) AS items_purchased
         FROM orders o
         LEFT JOIN order_items oi ON o.id_order = oi.order_id
-        WHERE MONTH(o.order_date) = ? AND YEAR(o.order_date) = ?
+        WHERE o.order_date BETWEEN ? AND ?
         GROUP BY o.id_order
         ORDER BY o.order_date DESC;
       `,
       pets_summary: `
         SELECT COUNT(*) AS total_pets
         FROM petInfos
-        WHERE MONTH(created_At) = ? AND YEAR(created_At) = ?;
+        WHERE created_At BETWEEN ? AND ?;
       `,
       pets_details: `
         SELECT *
         FROM petInfos
-        WHERE MONTH(created_At) = ? AND YEAR(created_At) = ?;
+        WHERE created_At BETWEEN ? AND ?
       `,
       pets_species_details: `
         SELECT 
@@ -53,8 +56,7 @@ router.get("/monthly", async (req, res) => {
           petType,
           COUNT(*) AS total_species
         FROM petInfos
-        WHERE MONTH(created_At) = ? 
-          AND YEAR(created_At) = ?
+        WHERE created_At BETWEEN ? AND ?
         GROUP BY species, petType
         ORDER BY total_species DESC;
       `,
@@ -68,21 +70,19 @@ router.get("/monthly", async (req, res) => {
         FROM visit_history AS vh
         JOIN pet_medical_records AS pmr 
           ON vh.id_pet_medical_records = pmr.id_medical_record
-        WHERE 
-          MONTH(vh.date_visit) = ?
-          AND YEAR(vh.date_visit) = ?
+        WHERE vh.date_visit BETWEEN ? AND ?
         ORDER BY vh.date_visit DESC;
       `,
       inventory_summary: `
         SELECT COUNT(*) AS total_items,
                SUM(stock) AS total_stock
         FROM inventory
-        WHERE MONTH(date_purchase) = ? AND YEAR(date_purchase) = ?;
+        WHERE date_purchase BETWEEN ? AND ?
       `,
       inventory_details: `
         SELECT *
         FROM inventory
-        WHERE MONTH(date_purchase) = ? AND YEAR(date_purchase) = ?;
+        WHERE date_purchase BETWEEN ? AND ?
       `,
       appointments_summary: `
         SELECT COUNT(*) AS total_appointments,
@@ -90,12 +90,12 @@ router.get("/monthly", async (req, res) => {
                SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS pending,
                SUM(CASE WHEN status = 'Declined' THEN 1 ELSE 0 END) AS declined
         FROM appointments_tables
-        WHERE MONTH(set_date) = ? AND YEAR(set_date) = ?;
+        WHERE set_date BETWEEN ? AND ?
       `,
       appointments_details: `
         SELECT *
         FROM appointments_tables
-        WHERE MONTH(set_date) = ? AND YEAR(set_date) = ?;
+        WHERE set_date BETWEEN ? AND ?
       `,
       services: `
         SELECT COUNT(*) AS total_services
@@ -108,7 +108,7 @@ router.get("/monthly", async (req, res) => {
           SUM(oi.quantity) AS total_sold
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id_order
-        WHERE MONTH(o.order_date) = ? AND YEAR(o.order_date) = ?
+        WHERE o.order_date BETWEEN ? AND ?
         GROUP BY oi.product_ID, oi.product_name
         ORDER BY total_sold DESC;
       `,
@@ -122,8 +122,7 @@ router.get("/monthly", async (req, res) => {
           MAX(sio.created_At) AS last_movement_date
         FROM inventory_stock_in_out AS sio
         JOIN inventory AS i ON sio.product_ID = i.product_ID
-        WHERE MONTH(sio.created_At) = ? 
-          AND YEAR(sio.created_At) = ?
+        WHERE sio.created_At BETWEEN ? AND ?
         GROUP BY sio.product_ID, i.name, i.stock
         ORDER BY last_movement_date DESC;
       `,
@@ -135,8 +134,7 @@ router.get("/monthly", async (req, res) => {
         FROM services s
         LEFT JOIN visit_history v
           ON s.title = v.service_type
-          AND MONTH(v.date_visit) = ?
-          AND YEAR(v.date_visit) = ?
+          AND v.date_visit BETWEEN ? AND ?
         GROUP BY s.id, s.title
         ORDER BY s.id;
       `
@@ -162,7 +160,7 @@ router.get("/monthly", async (req, res) => {
       Object.values(queries).map(
         (sql) =>
           new Promise((resolve, reject) => {
-            db.query(sql, [month, year], (err, result) => {
+            db.query(sql, [start, end, start, end], (err, result) => {
               if (err) return reject(err);
               resolve(result);
             });
@@ -171,8 +169,8 @@ router.get("/monthly", async (req, res) => {
     );
 
     res.json({
-      month,
-      year,
+      start_date,
+      end_date,
       summary: {
         orders: orders_summary[0],
         pets: pets_summary[0],
@@ -193,8 +191,8 @@ router.get("/monthly", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("❌ Error fetching monthly report:", err);
-    res.status(500).json({ error: "Failed to generate monthly report" });
+    console.error("❌ Error fetching report:", err);
+    res.status(500).json({ error: "Failed to generate report" });
   }
 });
 
