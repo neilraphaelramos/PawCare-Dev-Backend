@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { sq } = require('date-fns/locale');
 
 const connectedUsers = new Map();
 
@@ -68,6 +69,7 @@ router.post("/vetadminapi/post", (req, res) => {
 
 router.get("/vetadminapi/:uid", (req, res) => {
   const { uid } = req.params;
+
   const sql = `
     SELECT 
       n.notify_id,
@@ -79,9 +81,13 @@ router.get("/vetadminapi/:uid", (req, res) => {
     FROM Vet_Admin_notification n
     LEFT JOIN Notification_Read_Status r 
       ON n.notify_id = r.notify_id AND r.UID = ?
+    LEFT JOIN Vet_Admin_Notification_Clear c
+      ON n.notify_id = c.notify_id AND c.UID = ?
+    WHERE c.clear_id IS NULL
     ORDER BY n.notify_id DESC
   `;
-  db.query(sql, [uid], (err, rows) => {
+
+  db.query(sql, [uid, uid], (err, rows) => {
     if (err) return res.status(500).json({ error: err });
     res.json(rows);
   });
@@ -109,6 +115,31 @@ router.post("/vetadminapi/setallread", (req, res) => {
     ON DUPLICATE KEY UPDATE isRead = 1, read_date = NOW()
   `;
   db.query(sql, [UID], (err) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json({ success: true });
+  });
+});
+
+router.post("/vetadminapi/clear", (req, res) => {
+  const { notify_id, UID } = req.body;
+
+  const sql = `
+    INSERT INTO Vet_Admin_Notification_Clear (notify_id, UID)
+    VALUES (?, ?)
+  `;
+
+  db.query(sql, [notify_id, UID], (err) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json({ success: true, message: "Notification cleared." });
+  });
+});
+
+router.delete('/api/remove/:id', (req, res) => {
+  const { id } = req.params;
+
+  const sql = `DELETE FROM notification WHERE notify_id = ?`;
+
+  db.query(sql, [id], (err) => {
     if (err) return res.status(500).json({ error: err });
     res.json({ success: true });
   });
