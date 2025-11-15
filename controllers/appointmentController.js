@@ -46,7 +46,7 @@ router.get('/fully-booked', (req, res) => {
     SELECT DATE_FORMAT(set_date, '%Y-%m-%d') AS set_date
     FROM appointments_tables
     GROUP BY set_date
-    HAVING COUNT(*) >= 10
+    HAVING COUNT(*) >= 11
     ORDER BY set_date ASC
   `;
 
