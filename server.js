@@ -34,6 +34,7 @@ const reportsRoute = require('./controllers/reportsController');
 const resetPasswordRoute = require('./controllers/resetPasswordController');
 const consultMessageRoute = require('./controllers/consultMessagesController');
 const receiptRoute = require('./controllers/receiptController');
+const logsRoute = require('./controllers/logsController');
 
 const app = express();
 const server = http.createServer(app);
@@ -79,6 +80,7 @@ app.use('/reports', reportsRoute);
 app.use('/reset-password-request', resetPasswordRoute);
 app.use('/consult_messages', consultMessageRoute);
 app.use('/order-receipt', receiptRoute);
+app.use('/logs-vet', logsRoute);
 
 const PORT = process.env.PORT;
 server.listen(PORT, () => {

@@ -33,11 +33,21 @@ router.get('/vets/:date', (req, res) => {
 
 router.put('/:id/status', (req, res) => {
   const { id } = req.params;
-  const { status } = req.body; // 'Approved' or 'Declined'
-  const sql = 'UPDATE appointments_tables SET status = ? WHERE id_appoint = ?';
-  db.query(sql, [status, id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Status updated' });
+  const { status, reason } = req.body;
+
+  const sql = `
+    UPDATE appointments_tables 
+    SET status = ?, reason = ?
+    WHERE id_appoint = ?
+  `;
+
+  db.query(sql, [status, reason, id], (err, result) => {
+    if (err) {
+      console.error("Error updating status:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+
+    res.json({ success: true, message: 'Status updated successfully' });
   });
 });
 

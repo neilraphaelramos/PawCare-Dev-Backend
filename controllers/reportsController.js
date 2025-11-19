@@ -137,6 +137,18 @@ router.get("/range", async (req, res) => {
           AND v.date_visit BETWEEN ? AND ?
         GROUP BY s.id, s.title
         ORDER BY s.id;
+      `,
+      vet_logs: `
+        SELECT 
+            log_ID,
+            UID,
+            vetName,
+            action_vet,
+            CONVERT_TZ(time_In, @@global.time_zone, '+08:00') AS time_In,
+            created_at
+        FROM user_logs
+        WHERE time_In BETWEEN ? AND ?
+        ORDER BY time_In DESC;
       `
     };
 
@@ -156,6 +168,7 @@ router.get("/range", async (req, res) => {
       products_sold,
       inventory_stock,
       services_usage,
+      vet_logs,
     ] = await Promise.all(
       Object.values(queries).map(
         (sql) =>
@@ -188,6 +201,7 @@ router.get("/range", async (req, res) => {
         totalspecies: pet_species_details,
         visits: visits,
         servicesCount: services_usage,
+        vet_logs: vet_logs,
       },
     });
   } catch (err) {

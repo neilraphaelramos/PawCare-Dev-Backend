@@ -89,23 +89,51 @@ router.get('/', (req, res) => {
 
 router.patch('/update-status/:channelConsultID', (req, res) => {
   const { channelConsultID } = req.params;
-  const { status } = req.body;
+  const { status, decline_reason } = req.body;
+
   const updateStatusQuery = `
     UPDATE online_consultation_table
-    SET status = ?
+    SET status = ?, reason = ?
     WHERE channel_consult_ID = ?
   `;
+
+  const selectSql = `
+    SELECT userId 
+    FROM online_consultation_table 
+    WHERE channel_consult_ID = ?
+  `;
+
   try {
-    db.query(updateStatusQuery, [status, channelConsultID], (err, result) => {
-      if (err) {
-        console.error("Error updating status:", err);
-        return res.status(500).json({ error: "Database error" });
+    // First, get the user_id
+    db.query(selectSql, [channelConsultID], (selectErr, rows) => {
+      if (selectErr) {
+        console.error("Error fetching consultation:", selectErr);
+        return res.status(500).json({ success: false, error: selectErr });
       }
-      res.json({ message: "Status updated successfully" });
+
+      if (rows.length === 0) {
+        return res.status(404).json({ success: false, message: "Consultation not found" });
+      }
+
+      const userId = rows[0].userId;
+
+      // Then, update the status
+      db.query(updateStatusQuery, [status, decline_reason, channelConsultID], (updateErr, result) => {
+        if (updateErr) {
+          console.error("Error updating status:", updateErr);
+          return res.status(500).json({ success: false, error: updateErr });
+        }
+
+        res.json({
+          success: true,
+          user_id: userId, // 🔥 return user_id for notifications
+          message: "Status updated successfully"
+        });
+      });
     });
   } catch (err) {
     console.error("Server error:", err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
@@ -179,7 +207,7 @@ router.get('/details/consultation/:date', (req, res) => {
 
 router.put('/status-update-consultation/:id', (req, res) => {
   const { id } = req.params;
-  const { status } = req.body; 
+  const { status } = req.body;
 
   const sql = 'UPDATE online_consultation_table SET isDone = ? WHERE consult_id = ?';
   db.query(sql, [status, id], (err, result) => {
