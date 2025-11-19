@@ -77,6 +77,7 @@ router.get('/', (req, res) => {
           : null,
         setTime: item.set_time,
         status: item.status,
+        reason: item.reason,
       }));
 
       res.json({ fetchData: formattedResults });
