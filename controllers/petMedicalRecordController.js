@@ -25,6 +25,7 @@ router.get('/fetch', (req, res) => {
       gender: r.pet_gender,
       condition: r.pet_condition,
       lastVisit: formatDate(r.last_visit),
+      timeVisit: r.time_visit,
       diagnosis: r.diagnosis,
     }));
 
@@ -79,6 +80,7 @@ router.get('/fetch/visit_history/:medical_id', (req, res) => {
       ownerPhoneNum: h.owner_phone,
       day: h.day,
       date: formatDate(h.date_visit),
+      time: h.time_visit,
       service: h.service_type,
       complaint: h.main_complaint,
       diagnosis: h.pet_diagnosis,
@@ -112,17 +114,18 @@ router.post('/add_pet', (req, res) => {
     pet_gender,
     pet_condition,
     last_visit,
+    time_visit,
     diagnosis,
     photo
   } = req.body;
 
   const sql = `
     INSERT INTO pet_medical_records 
-    (owner_name, owner_username, photo_pet, pet_name, petType, species, pet_age, pet_gender, pet_condition, last_visit, diagnosis)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (owner_name, owner_username, photo_pet, pet_name, petType, species, pet_age, pet_gender, pet_condition, last_visit, time_visit, diagnosis)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  db.query(sql, [owner_name, user_name, photo, pet_name, petType, species, pet_age, pet_gender, pet_condition, last_visit, diagnosis],
+  db.query(sql, [owner_name, user_name, photo, pet_name, petType, species, pet_age, pet_gender, pet_condition, last_visit, time_visit, diagnosis],
     (err, result) => {
       if (err) {
         console.error("Error adding pet:", err);
@@ -137,19 +140,21 @@ router.put('/edit_pet/:id', uploadMedicalRecord, async (req, res) => {
   const {
     pet_condition,
     last_visit,
+    time_visit,
     diagnosis
   } = req.body;
 
   try {
     const sql = `
       UPDATE pet_medical_records
-      SET pet_condition=?, last_visit=?, diagnosis=?
+      SET pet_condition=?, last_visit=?, time_visit=?, diagnosis=?
       WHERE id_medical_record=?
     `;
 
     const values = [
       pet_condition,
       last_visit,
+      time_visit,
       diagnosis,
       id
     ];
@@ -176,6 +181,7 @@ router.post('/add_pet_history', (req, res) => {
     owner_phonenumber,
     day,
     date_visit,
+    time_visit,
     service_type,
     main_complaint,
     pet_diagnosis,
@@ -196,12 +202,12 @@ router.post('/add_pet_history', (req, res) => {
 
   const sql = `
     INSERT INTO visit_history 
-    (id_pet_medical_records, owner_email, owner_address, owner_phone, day, date_visit, service_type, main_complaint, pet_diagnosis, treatment_status, date_completed_on, 
+    (id_pet_medical_records, owner_email, owner_address, owner_phone, day, date_visit, time_visit, service_type, main_complaint, pet_diagnosis, treatment_status, date_completed_on, 
      nursing_issues, care_plan, local_status_check, additional_complaint, weight, height, bmi, blood_pressure, pulse, medications, veterinarian_name) 
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   const values = [
-    id_pet_medical_records, owner_email, owner_address, owner_phonenumber, day, date_visit, service_type, main_complaint, pet_diagnosis, treatment_status, date_completed_on,
+    id_pet_medical_records, owner_email, owner_address, owner_phonenumber, day, date_visit, time_visit, service_type, main_complaint, pet_diagnosis, treatment_status, date_completed_on,
     nursing_issues, care_plan, local_status_check, additional_complaint, weight, height, bmi, blood_pressure, pulse, medications, veterinarian_name
   ];
 
@@ -222,6 +228,7 @@ router.put('/edit_pet_history/:id', (req, res) => {
     owner_phonenumber,
     day,
     date_visit,
+    date_time,
     service_type,
     main_complaint,
     pet_diagnosis,
@@ -242,14 +249,14 @@ router.put('/edit_pet_history/:id', (req, res) => {
 
   const sql = `
     UPDATE visit_history SET
-    owner_email=?, owner_address=?, owner_phone=?, day=?, date_visit=?, service_type=?, main_complaint=?, pet_diagnosis=?, treatment_status=?, date_completed_on=?, 
+    owner_email=?, owner_address=?, owner_phone=?, day=?, date_visit=?, time_visit=?, service_type=?, main_complaint=?, pet_diagnosis=?, treatment_status=?, date_completed_on=?, 
     nursing_issues=?, care_plan=?, local_status_check=?, additional_complaint=?, weight=?, height=?, bmi=?, 
     blood_pressure=?, pulse=?, medications=?, veterinarian_name=?
     WHERE id_pet_history=?
   `;
 
   const values = [
-    owner_email, owner_address, owner_phonenumber, day, date_visit, service_type, main_complaint, pet_diagnosis, treatment_status, date_completed_on,
+    owner_email, owner_address, owner_phonenumber, day, date_visit, date_time, service_type, main_complaint, pet_diagnosis, treatment_status, date_completed_on,
     nursing_issues, care_plan, local_status_check, additional_complaint, weight, height, bmi,
     blood_pressure, pulse, medications, veterinarian_name, id
   ];
