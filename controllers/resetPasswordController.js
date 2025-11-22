@@ -2,8 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const db = require('../db');
-const sendEmail = require('../config/mailerV2');
-const { resetPasswordTemplate } = require('../config/emailTemplates');
+const sendEmail = require('../config/mailerReset');
 require('dotenv').config();
 const router = express.Router();
 
@@ -40,15 +39,12 @@ router.post('/', async (req, res) => {
                     return res.status(500).json({ error: 'Internal server error' });
                 }
                 const resetLink = `${process.env.DEFAULT_URL}/reset-password-verify?token=${resetToken}&id=${userId}`;
-
-                const html = resetPasswordTemplate(email, results[0].firstName, resetLink);
-
                 try {
-                    sendEmail({
-                        to: email,
-                        subject: "Reset Your Password",
-                        html: html
-                    })
+                    await sendEmail({
+                        toEmail: email,
+                        firstName: results[0].firstName,
+                        verifyLink: resetLink,
+                    });
                     return res.json({ message: 'Password reset link sent to your email.' });
                 } catch (emailErr) {
                     console.error('Email sending error:', emailErr);

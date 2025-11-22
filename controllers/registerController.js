@@ -2,9 +2,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const db = require("../db");
-const sendEmail = require("../config/mailerV2");
-const { verificationEmailTemplate } = require("../config/emailTemplates");
-
+const sendEmail = require("../config/mailer");
 require("dotenv").config();
 
 const router = express.Router();
@@ -51,11 +49,7 @@ router.post("/", async (req, res) => {
     // 4️⃣ Send email BEFORE database insert
     // -----------------------------
     try {
-      await sendEmail({
-        to: email,
-        subject: "Verify Your PawCare Account",
-        html: html,
-      });
+      await sendEmail({ toEmail: email, firstName, verifyLink });
     } catch (emailErr) {
       console.error("Email sending error:", emailErr);
       return res.status(500).json({ error: "Failed to send verification email. Registration aborted." });
