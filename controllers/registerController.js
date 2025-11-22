@@ -1,13 +1,15 @@
-const express = require('express');
-const bcrypt = require('bcrypt');
-const crypto = require('crypto');
-const db = require('../db');
-const sendEmail = require('../config/mailer'); // EmailJS
-require('dotenv').config();
+const express = require("express");
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const db = require("../db");
+const sendEmail = require("../config/mailerV2");
+const { verificationEmailTemplate } = require("../config/emailTemplates");
+
+require("dotenv").config();
 
 const router = express.Router();
 
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   const {
     firstName,
     middleName,
@@ -25,33 +27,68 @@ router.post('/', async (req, res) => {
   } = req.body;
 
   if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
+    return res.status(400).json({ error: "Email is required" });
   }
 
   try {
+    // -----------------------------
+    // 1️⃣ Hash password early
+    // -----------------------------
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const sql_credentials = `
+    // -----------------------------
+    // 2️⃣ Generate email verification token
+    // -----------------------------
+    const token = crypto.randomBytes(32).toString("hex");
+    const verifyLink = `${process.env.DEFAULT_URL}/verify?token=${token}`;
+
+    // -----------------------------
+    // 3️⃣ Generate email HTML template
+    // -----------------------------
+    const html = verificationEmailTemplate(firstName, verifyLink);
+
+    // -----------------------------
+    // 4️⃣ Send email BEFORE database insert
+    // -----------------------------
+    try {
+      await sendEmail({
+        to: email,
+        subject: "Verify Your PawCare Account",
+        html: html,
+      });
+    } catch (emailErr) {
+      console.error("Email sending error:", emailErr);
+      return res.status(500).json({ error: "Failed to send verification email. Registration aborted." });
+    }
+
+    // -----------------------------
+    // 5️⃣ Insert into user_credentials
+    // -----------------------------
+    const sqlCredentials = `
       INSERT INTO user_credentials 
       (userName, email, password, userRole, isverified, authType)
       VALUES (?, ?, ?, ?, 0, 0)
     `;
-    const credential_values = [username, email, hashedPassword, 'User'];
+    const credentialValues = [username, email, hashedPassword, "User"];
 
-    db.query(sql_credentials, credential_values, (err, result) => {
+    db.query(sqlCredentials, credentialValues, (err, result) => {
       if (err) {
-        console.error('Registration error:', err);
-        return res.status(500).json({ error: 'Registration failed' });
+        console.error("Registration error:", err);
+        return res.status(500).json({ error: "Registration failed" });
       }
 
       const userId = result.insertId;
 
-      const sql_informations = `
+      // -----------------------------
+      // 6️⃣ Insert into user_infos
+      // -----------------------------
+      const sqlInfo = `
         INSERT INTO user_infos
         (user_id, firstName, middleName, lastName, suffix, phoneNumber, houseNum, province, municipality, barangay, zipCode)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
-      const info_values = [
+
+      const infoValues = [
         userId,
         firstName,
         middleName,
@@ -65,42 +102,38 @@ router.post('/', async (req, res) => {
         zipCode,
       ];
 
-      db.query(sql_informations, info_values, (err2) => {
+      db.query(sqlInfo, infoValues, (err2) => {
         if (err2) {
-          console.error('Registration error:', err2);
-          return res.status(500).json({ error: 'Registration failed' });
+          console.error("Registration error:", err2);
+          return res.status(500).json({ error: "Registration failed" });
         }
 
-        const token = crypto.randomBytes(32).toString('hex');
-        const sql_token = `
+        // -----------------------------
+        // 7️⃣ Insert verification token
+        // -----------------------------
+        const sqlToken = `
           INSERT INTO user_verification (user_id, token)
           VALUES (?, ?)
         `;
 
-        db.query(sql_token, [userId, token], async (err3) => {
+        db.query(sqlToken, [userId, token], (err3) => {
           if (err3) {
-            console.error('Token insert error:', err3);
-            return res.status(500).json({ error: 'Registration failed' });
+            console.error("Token insert error:", err3);
+            return res.status(500).json({ error: "Registration failed" });
           }
 
-          const verifyLink = `${process.env.DEFAULT_URL}/verify?token=${token}`;
-
-          try {
-            await sendEmail({ toEmail: email, firstName, verifyLink });
-            res.status(200).json({
-              message:
-                'Registration successful. Please check your email to verify your account.',
-            });
-          } catch (emailErr) {
-            console.error('Email sending error:', emailErr);
-            res.status(500).json({ error: 'Failed to send verification email' });
-          }
+          // -----------------------------
+          // 🎉 SUCCESS
+          // -----------------------------
+          res.status(200).json({
+            message: "Registration successful. Please check your email to verify your account.",
+          });
         });
       });
     });
   } catch (err) {
-    console.error('Hashing error:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error("Server error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
