@@ -41,11 +41,6 @@ router.post("/", async (req, res) => {
     const verifyLink = `${process.env.DEFAULT_URL}/verify?token=${token}`;
 
     // -----------------------------
-    // 3️⃣ Generate email HTML template
-    // -----------------------------
-    const html = verificationEmailTemplate(firstName, verifyLink);
-
-    // -----------------------------
     // 4️⃣ Send email BEFORE database insert
     // -----------------------------
     try {

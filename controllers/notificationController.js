@@ -48,15 +48,15 @@ router.get("/vetadminapi", (req, res) => {
 });
 
 router.post("/vetadminapi/post", (req, res) => {
-  const { title_notify, type_notify, details } = req.body;
+  const { title_notify, type_notify, details, displaySet } = req.body;
 
-  const insertNofity = `
+  const insertNotify = `
     INSERT INTO Vet_Admin_notification 
-    (title_notify, type_notify, details, notify_date )
-    VALUES (?, ?, ?, NOW())
-  `
+    (title_notify, type_notify, details, notify_date, displaySet)
+    VALUES (?, ?, ?, NOW(), ?)
+  `;
 
-  db.query(insertNofity, [title_notify, type_notify, details], (err) => {
+  db.query(insertNotify, [title_notify, type_notify, details, displaySet], (err) => {
     if (err) {
       console.error("Database error:", err);
       return res.status(500).json({ error: "Database error" });
@@ -66,8 +66,8 @@ router.post("/vetadminapi/post", (req, res) => {
   });
 });
 
-router.get("/vetadminapi/:uid", (req, res) => {
-  const { uid } = req.params;
+router.get("/vetadminapi/:uid/:role", (req, res) => {
+  const { uid, role } = req.params;
 
   const sql = `
     SELECT 
@@ -76,6 +76,7 @@ router.get("/vetadminapi/:uid", (req, res) => {
       n.type_notify,
       n.details,
       n.notify_date,
+      n.displaySet,
       COALESCE(r.isRead, 0) AS isRead
     FROM Vet_Admin_notification n
     LEFT JOIN Notification_Read_Status r 
@@ -83,10 +84,11 @@ router.get("/vetadminapi/:uid", (req, res) => {
     LEFT JOIN Vet_Admin_Notification_Clear c
       ON n.notify_id = c.notify_id AND c.UID = ?
     WHERE c.clear_id IS NULL
+      AND n.displaySet IN ('All', ?)
     ORDER BY n.notify_id DESC
   `;
 
-  db.query(sql, [uid, uid], (err, rows) => {
+  db.query(sql, [uid, uid, role], (err, rows) => {
     if (err) return res.status(500).json({ error: err });
     res.json(rows);
   });
