@@ -51,6 +51,12 @@ router.post('/add_pet_info', uploadMedicalRecord, (req, res) => {
         [ownerName, ownerUsername, imageUrl, petName, petType, species, petAge, petGender],
         (err, result) => {
             if (err) {
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(409).json({
+                        success: false,
+                        message: "You already have a pet with this name."
+                    });
+                }
                 console.error("Error inserting pet:", err);
                 return res.status(500).json({ success: false, message: "Database error" });
             }

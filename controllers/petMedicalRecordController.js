@@ -128,6 +128,12 @@ router.post('/add_pet', (req, res) => {
   db.query(sql, [owner_name, user_name, photo, pet_name, petType, species, pet_age, pet_gender, pet_condition, last_visit, time_visit, diagnosis],
     (err, result) => {
       if (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(409).json({
+            success: false,
+            message: "A medical record for this pet already exists for the selected owner and pet name info."
+          });
+        }
         console.error("Error adding pet:", err);
         return res.status(500).json({ success: false, error: "Database error" });
       }
@@ -204,7 +210,7 @@ router.post('/add_pet_history', (req, res) => {
     INSERT INTO visit_history 
     (id_pet_medical_records, owner_email, owner_address, owner_phone, day, date_visit, time_visit, service_type, main_complaint, pet_diagnosis, treatment_status, date_completed_on, 
      nursing_issues, care_plan, local_status_check, additional_complaint, weight, height, bmi, blood_pressure, pulse, medications, veterinarian_name) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   const values = [
     id_pet_medical_records, owner_email, owner_address, owner_phonenumber, day, date_visit, time_visit, service_type, main_complaint, pet_diagnosis, treatment_status, date_completed_on,
@@ -213,6 +219,12 @@ router.post('/add_pet_history', (req, res) => {
 
   db.query(sql, values, (err, result) => {
     if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({
+          success: false,
+          message: "A visit already exists for the selected date and time. Please choose a different date or time."
+        });
+      }
       console.error("Error adding visit history:", err);
       return res.status(500).json({ success: false, error: "Database error" });
     }
@@ -380,7 +392,7 @@ router.get("/summary-service-demand/services", (req, res) => {
       console.error("Error fetching service demand summary:", err);
       return res.status(500).json({ error: "Database error" });
     }
-    res.json({results});
+    res.json({ results });
   });
 });
 

@@ -663,4 +663,32 @@ router.get("/summary-orders/categories", (req, res) => {
   });
 });
 
+router.put("/update_address/:orderId", (req, res) => {
+  const { orderId } = req.params;
+  const { newAddress } = req.body;
+
+  if (!newAddress || newAddress.trim() === "") {
+    return res.status(400).json({ message: "Address cannot be empty" });
+  }
+
+  const query = `
+    UPDATE orders
+    SET customer_address = ?
+    WHERE id_order = ?
+  `;
+
+  db.query(query, [newAddress, orderId], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.json({ message: "Address updated successfully" });
+  });
+});
+
 module.exports = router;
