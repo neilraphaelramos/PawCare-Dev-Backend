@@ -6,7 +6,6 @@ const db = require('../db');
 /*  GET all unavailable dates and times  */
 /* ---------------------------- */
 router.get("/", (req, res) => {
-    console.log("[DEBUG] GET /availability called");
 
     const sqlFullDays = `SELECT * FROM unavailable_dates`;
     const sqlTimeRanges = `SELECT * FROM unavailable_times`;
@@ -17,15 +16,11 @@ router.get("/", (req, res) => {
             return res.status(500).json({ message: "Database error", error: err });
         }
 
-        console.log("[DEBUG] Full days fetched:", fullDayRows.length);
-
         db.query(sqlTimeRanges, (err2, timeRows) => {
             if (err2) {
                 console.error("[ERROR] Fetching time ranges failed:", err2);
                 return res.status(500).json({ message: "Database error", error: err2 });
             }
-
-            console.log("[DEBUG] Time ranges fetched:", timeRows.length);
 
             const formatDate = (date) => {
                 const d = new Date(date);
@@ -53,19 +48,72 @@ router.get("/", (req, res) => {
                 setBy: t.setBy
             }));
 
-            console.log("[DEBUG] Sending JSON response with fullDays and times");
             res.json({ fullDays, times });
         });
     });
 });
 
+router.get("/user-only", (req, res) => {
+
+    // Full day blocks set by admin
+    const sqlFullDays = `
+        SELECT id, date, event 
+        FROM unavailable_dates
+        WHERE role_set = 'Admin'
+    `;
+
+    // Partial time blocks set by admin
+    const sqlTimes = `
+        SELECT id, date, time_from, time_to, event
+        FROM unavailable_times
+        WHERE role_set = 'Admin'
+    `;
+
+    db.query(sqlFullDays, (err, fullDayRows) => {
+        if (err) {
+            console.error("[ERROR] Fetching admin full days:", err);
+            return res.status(500).json({ message: "Database error", error: err });
+        }
+
+        db.query(sqlTimes, (err2, timeRows) => {
+            if (err2) {
+                console.error("[ERROR] Fetching admin time ranges:", err2);
+                return res.status(500).json({ message: "Database error", error: err2 });
+            }
+
+            // Convert SQL DATE/TIME into proper formats
+            const formatDate = (date) => {
+                const d = new Date(date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
+                return `${year}-${month}-${day}`;
+            };
+
+            const fullDays = fullDayRows.map(d => ({
+                id: d.id,
+                date: formatDate(d.date),
+                event: d.event
+            }));
+
+            const times = timeRows.map(t => ({
+                id: t.id,
+                date: formatDate(t.date),
+                time_from: t.time_from,
+                time_to: t.time_to,
+                event: t.event
+            }));
+
+            res.json({ fullDays, times });
+        });
+    });
+});
 
 /* ---------------------------- */
 /*  GET all unavailable data for a user */
 /* ---------------------------- */
 router.get("/:user_id", (req, res) => {
     const userId = req.params.user_id;
-    console.log(`[DEBUG] GET /availability/${userId} called`);
 
     const sql1 = `SELECT * FROM unavailable_dates WHERE user_id = ?`;
     const sql2 = `SELECT * FROM unavailable_times WHERE user_id = ?`;
@@ -76,15 +124,11 @@ router.get("/:user_id", (req, res) => {
             return res.status(500).json(err);
         }
 
-        console.log(`[DEBUG] Full days fetched for user ${userId}:`, fullDayRows.length);
-
         db.query(sql2, [userId], (err2, timeRows) => {
             if (err2) {
                 console.error("[ERROR] Fetching user time ranges failed:", err2);
                 return res.status(500).json(err2);
             }
-
-            console.log(`[DEBUG] Time ranges fetched for user ${userId}:`, timeRows.length);
 
             const formatLocalDate = (date) => {
                 const d = new Date(date);
@@ -97,7 +141,6 @@ router.get("/:user_id", (req, res) => {
             const formattedFullDays = fullDayRows.map(d => ({ ...d, date: formatLocalDate(d.date) }));
             const formattedTimes = timeRows.map(t => ({ ...t, date: formatLocalDate(t.date) }));
 
-            console.log("[DEBUG] Sending JSON response for user");
             res.json({ fullDays: formattedFullDays, times: formattedTimes });
         });
     });
@@ -175,7 +218,6 @@ router.post("/add-time", (req, res) => {
 /* ---------------------------- */
 router.delete("/delete-full-day/:id", (req, res) => {
     const id = req.params.id;
-    console.log("[DEBUG] DELETE /delete-full-day called with ID:", id);
 
     const sql = `DELETE FROM unavailable_dates WHERE id = ?`;
     db.query(sql, [id], (err) => {
@@ -183,7 +225,6 @@ router.delete("/delete-full-day/:id", (req, res) => {
             console.error("[ERROR] Deleting full day failed:", err);
             return res.status(500).json(err);
         }
-        console.log("[DEBUG] Full day deleted successfully");
         res.json({ message: "Full day deleted" });
     });
 });
@@ -193,7 +234,6 @@ router.delete("/delete-full-day/:id", (req, res) => {
 /* ---------------------------- */
 router.delete("/delete-time/:id", (req, res) => {
     const id = req.params.id;
-    console.log("[DEBUG] DELETE /delete-time called with ID:", id);
 
     const sql = `DELETE FROM unavailable_times WHERE id = ?`;
     db.query(sql, [id], (err) => {
@@ -201,7 +241,6 @@ router.delete("/delete-time/:id", (req, res) => {
             console.error("[ERROR] Deleting time range failed:", err);
             return res.status(500).json(err);
         }
-        console.log("[DEBUG] Time range deleted successfully");
         res.json({ message: "Time range deleted" });
     });
 });
