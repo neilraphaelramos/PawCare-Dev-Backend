@@ -36,6 +36,7 @@ const consultMessageRoute = require('./controllers/consultMessagesController');
 const receiptRoute = require('./controllers/receiptController');
 const logsRoute = require('./controllers/logsController');
 const availabilityRoute = require('./controllers/availabilityController');
+const unlockAccountRoute = require('./controllers/unlockAccount');
 
 const app = express();
 const server = http.createServer(app);
@@ -83,6 +84,7 @@ app.use('/consult_messages', consultMessageRoute);
 app.use('/order-receipt', receiptRoute);
 app.use('/logs-vet', logsRoute);
 app.use('/availability', availabilityRoute);
+app.use('/unlock-account', unlockAccountRoute);
 
 const PORT = process.env.PORT;
 server.listen(PORT, () => {
