@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const sendNotificationEmail = require('../config/mailerNotification');
 
 const connectedUsers = new Map();
 
@@ -144,6 +145,62 @@ router.delete('/api/remove/:id', (req, res) => {
     if (err) return res.status(500).json({ error: err });
     res.json({ success: true });
   });
+});
+
+router.post("/api/send-notification", async (req, res) => {
+  const { UID, type, title, message, mess1, mess2 } = req.body;
+
+  if (!UID || !type || !title) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
+
+  try {
+    // 1️⃣ Get user's first name and email by joining user_credentials and user_infos
+    const query = `
+      SELECT ui.firstName, uc.email
+      FROM user_credentials uc
+      LEFT JOIN user_infos ui ON uc.id = ui.user_ID
+      WHERE uc.id = ?
+    `;
+
+    db.query(query, [UID], async (err, results) => {
+      if (err) {
+        console.error("Database error:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { firstName, email } = results[0];
+
+      if (!email) {
+        return res.status(400).json({ error: "User does not have an email." });
+      }
+
+      // 2️⃣ Send the notification email
+      try {
+        await sendNotificationEmail({
+          toEmail: email,
+          name: firstName || "User",
+          type,
+          title,
+          message,
+          mess1: mess1 || '',
+          mess2: mess2 || ''
+        });
+
+        res.status(200).json({ success: true, message: "Notification email sent." });
+      } catch (emailErr) {
+        console.error("Error sending notification email:", emailErr);
+        res.status(500).json({ error: "Failed to send notification email." });
+      }
+    });
+  } catch (err) {
+    console.error("Unexpected error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 module.exports = router;

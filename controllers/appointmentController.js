@@ -71,6 +71,21 @@ router.get('/fully-booked', (req, res) => {
   });
 });
 
+router.get('/booked-times', (req, res) => {
+  const sql = 'SELECT set_date, set_time FROM appointments_tables';
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const bookedTimesPerDate = {};
+    results.forEach(appt => {
+      if (!bookedTimesPerDate[appt.set_date]) bookedTimesPerDate[appt.set_date] = [];
+      bookedTimesPerDate[appt.set_date].push(appt.set_time);
+    });
+
+    res.json(bookedTimesPerDate);
+  });
+});
+
 router.get('/:date', (req, res) => {
   const { date } = req.params; // date in YYYY-MM-DD
   const sql = 'SELECT set_time FROM appointments_tables WHERE set_date = ?';
@@ -119,7 +134,7 @@ router.get('/upcoming-appointment/:date', (req, res) => {
 
 router.put('/status-update-appointment/:id', (req, res) => {
   const { id } = req.params;
-  const { status } = req.body; 
+  const { status } = req.body;
 
   const sql = 'UPDATE appointments_tables SET isDone = ? WHERE id_appoint = ?';
   db.query(sql, [status, id], (err, result) => {
@@ -152,7 +167,7 @@ router.get('/future/:date', (req, res) => {
       setDate: item.set_date
         ? new Date(item.set_date).toLocaleDateString('en-CA')
         : null,
-      setTime: item.set_time, 
+      setTime: item.set_time,
       ownerName: item.owner_name,
       status: item.status,
       isDone: item.isDone,

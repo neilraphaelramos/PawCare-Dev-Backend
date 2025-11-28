@@ -7,6 +7,7 @@ router.get('/fetch', (req, res) => {
   const sql = `
     SELECT 
       o.id_order, 
+      o.uid,
       o.customer_name, 
       o.customer_address, 
       o.order_date, 
