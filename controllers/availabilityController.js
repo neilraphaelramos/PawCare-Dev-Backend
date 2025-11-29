@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const sendNotificationEmail = require('../config/mailerNotification');
+
+const connectedUsers = new Map();
 
 /* ---------------------------- */
 /*  GET all unavailable dates and times  */
@@ -243,6 +246,93 @@ router.delete("/delete-time/:id", (req, res) => {
         }
         res.json({ message: "Time range deleted" });
     });
+});
+
+router.post('/sent-unavailable-message', async (req, res) => {
+    const { date, event, time_from, time_to, name } = req.body;
+
+    try {
+        const getAccountSQL = `
+            SELECT 
+                uc.id, 
+                uc.email, 
+                uc.userName, 
+                ui.firstName, 
+                ui.middleName, 
+                ui.lastName, 
+                ui.suffix
+            FROM user_credentials uc
+            LEFT JOIN user_infos ui ON uc.id = ui.user_ID
+            WHERE uc.isverified = 1 AND uc.userRole = 'User';
+        `;
+
+        db.query(getAccountSQL, async (err, users) => {
+            if (err) {
+                console.error("[ERROR] Fetching users failed:", err);
+                return res.status(500).json({ message: "Database error", error: err });
+            }
+
+            if (!users || users.length === 0) {
+                return res.status(200).json({ message: "No verified users to notify." });
+            }
+
+            const notify_date = new Date();
+
+            const notifyPromises = users.map((user) => {
+                const details =
+                    time_from && time_to
+                        ? `Notice: ${name} has marked ${date} from ${time_from} to ${time_to} as unavailable. Reason: ${event}. Please book on another available date. Sorry for the inconvenience.`
+                        : `Notice: ${name} has marked ${date} as unavailable. Reason: ${event}. Please book on another available date. Sorry for the inconvenience.`;
+
+                const sql = `
+                    INSERT INTO notification (UID, title_notify, type_notify, details, notify_date)
+                    VALUES (?, ?, ?, ?, ?)
+                `;
+
+                return new Promise((resolve, reject) => {
+                    db.query(
+                        sql,
+                        [user.id, "Unavailable Notice", "Notice", details, notify_date],
+                        async (err2, result) => {
+                            if (err2) return reject(err2);
+
+                            await sendNotificationEmail({
+                                toEmail: user.email,
+                                name: user.firstName,
+                                type: "Notice",
+                                title: "Unavailable Notice",
+                                message: details,
+                                mess1: "",
+                                mess2: `We have marked this date as unavailable due to ${event}`
+                            });
+
+
+                            const socketId = connectedUsers.get(user.id);
+                            if (socketId) {
+                                io.to(socketId).emit("newNotification", {
+                                    id: result.insertId,
+                                    title_notify: "Unavailable Notice",
+                                    type_notify: "Notice",
+                                    details,
+                                    notify_date
+                                });
+                            }
+
+                            resolve();
+                        }
+                    );
+                });
+            });
+
+            await Promise.all(notifyPromises);
+
+            res.status(200).json({ message: "Notice notifications sent successfully." });
+        });
+
+    } catch (err) {
+        console.error("[ERROR] Sending unavailable messages:", err);
+        res.status(500).json({ message: "Failed to send notifications", error: err });
+    }
 });
 
 module.exports = router;
