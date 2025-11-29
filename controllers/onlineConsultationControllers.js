@@ -220,4 +220,35 @@ router.put('/status-update-consultation/:id', (req, res) => {
   });
 });
 
+router.get('/fully-booked', (req, res) => {
+  const sql = `
+    SELECT DATE_FORMAT(set_date, '%Y-%m-%d') AS set_date
+    FROM online_consultation_table
+    GROUP BY set_date
+    HAVING COUNT(*) >= 11
+    ORDER BY set_date ASC
+  `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching fully booked dates:", err);
+      return res.status(500).json([]);
+    }
+
+    const dates = results.map(r => r.set_date);
+    res.json(dates);
+  });
+});
+
+router.get('/:date', (req, res) => {
+  const { date } = req.params; // date in YYYY-MM-DD
+  const sql = 'SELECT set_time FROM online_consultation_table WHERE set_date = ?';
+  db.query(sql, [date], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    // Return an array of booked time strings
+    const bookedTimes = results.map(r => r.set_time);
+    res.json(bookedTimes);
+  });
+});
+
 module.exports = router;
