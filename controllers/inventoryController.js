@@ -16,8 +16,19 @@ router.get('/fetch', (req, res) => {
   });
 });
 
+router.get('/fetch/set-display', (req, res) => {
+  const sql = "SELECT * FROM inventory WHERE show_online = 1";
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching inventory:", err);
+      return res.status(500).json({ success: false, error: "Database error" });
+    }
+    res.json({ success: true, data: results });
+  });
+});
+
 router.post("/add", uploadInventory, (req, res) => {
-  const { item_code, name, item_group, date_purchase, date_expiration, amount, stock, price, unit } = req.body;
+  const { item_code, name, item_group, date_purchase, date_expiration, amount, stock, price, unit, show_online } = req.body;
   const photo = req.file ? req.file.path : null;
 
   if (!item_code || !name || !item_group || stock === undefined || price === undefined) {
@@ -26,10 +37,10 @@ router.post("/add", uploadInventory, (req, res) => {
 
   const sql = `
     INSERT INTO inventory 
-    (item_code, photo, name, item_group, date_purchase, date_expiration, amount, stock, price, unit) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (item_code, photo, name, item_group, date_purchase, date_expiration, amount, stock, price, unit, show_online) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
-  db.query(sql, [item_code, photo, name, item_group, date_purchase, date_expiration, amount, stock, price, unit], (err, result) => {
+  db.query(sql, [item_code, photo, name, item_group, date_purchase, date_expiration, amount, stock, price, unit, show_online], (err, result) => {
     if (err) {
       console.error("Error adding inventory:", err);
       return res.status(500).json({ success: false, error: "Database error" });
@@ -61,6 +72,7 @@ router.put("/update/:id", uploadInventory, async (req, res) => {
     stock,
     price,
     unit,
+    show_online,
   } = req.body;
 
   const newPhoto = req.file ? req.file.path : null;
@@ -106,7 +118,7 @@ router.put("/update/:id", uploadInventory, async (req, res) => {
     // Step 3: Update the inventory item
     const sql = `
       UPDATE inventory 
-      SET item_code=?, photo=?, name=?, item_group=?, date_purchase=?, date_expiration=?, amount=?, stock=?, price=?, unit=? 
+      SET item_code=?, photo=?, name=?, item_group=?, date_purchase=?, date_expiration=?, amount=?, stock=?, price=?, unit=?, show_online=? 
       WHERE product_ID=?
     `;
 
@@ -121,6 +133,7 @@ router.put("/update/:id", uploadInventory, async (req, res) => {
       newStock || 0,
       Number(price) || 0,
       unit || null,
+      show_online,
       id,
     ]);
 
