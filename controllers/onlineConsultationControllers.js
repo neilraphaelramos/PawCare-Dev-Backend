@@ -251,4 +251,191 @@ router.get('/:date', (req, res) => {
   });
 });
 
+//-------------------------------PAYMONGO LOGIC--------------------------------//
+
+router.post("/create_payment_intent", async (req, res) => {
+  const { amount, name, email, phone } = req.body;
+
+  try {
+    const headers = {
+      accept: "application/json",
+      "content-type": "application/json",
+      authorization:
+        "Basic " +
+        Buffer.from(`${process.env.SECRET_KEY_PAYMONGO}:`).toString("base64"),
+    };
+
+    const amountInCentavos = amount * 100;
+
+    console.log("🟡 Creating PayMongo Payment Intent...");
+    const intentRes = await fetch("https://api.paymongo.com/v1/payment_intents", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            amount: amountInCentavos,
+            currency: "PHP",
+            payment_method_allowed: ["qrph"],
+            capture_type: "automatic",
+            statement_descriptor: "Online Consultaion Payment",
+          },
+        },
+      }),
+    });
+
+    const intentData = await intentRes.json();
+    if (!intentData.data) {
+      console.error("❌ PayMongo intent error:", intentData);
+      return res.status(400).json({
+        success: false,
+        message: "Failed to create payment intent.",
+        error: intentData,
+      });
+    }
+
+    const intentId = intentData.data.id;
+    console.log(`✅ Payment Intent created: ${intentId}`);
+
+    // Step 2: Create QRPh payment method
+    console.log("🟡 Creating QRPH Payment Method...");
+    const methodRes = await fetch("https://api.paymongo.com/v1/payment_methods", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            type: "qrph",
+            billing: { name, email, phone },
+          },
+        },
+      }),
+    });
+
+    const methodData = await methodRes.json();
+    if (!methodData.data) {
+      console.error("❌ PayMongo method error:", methodData);
+      return res.status(400).json({
+        success: false,
+        message: "Failed to create payment method.",
+        error: methodData,
+      });
+    }
+
+    const methodId = methodData.data.id;
+    console.log(`✅ Payment Method created: ${methodId}`);
+
+    // Step 3: Attach payment method to intent
+    console.log("🟡 Attaching payment method to intent...");
+    const attachRes = await fetch(
+      `https://api.paymongo.com/v1/payment_intents/${intentId}/attach`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          data: {
+            attributes: {
+              payment_method: methodId,
+              return_url: `${process.env.DEFAULT_URL}/users/pet-products?payment=success`,
+            },
+          },
+        }),
+      }
+    );
+
+    const attachData = await attachRes.json();
+    const nextAction = attachData.data?.attributes?.next_action;
+
+    // ✅ Extract base64 QR image directly
+    const qrBase64 = nextAction?.code?.image_url || null;
+
+    if (qrBase64) {
+      console.log("🟢 QRPH Payment QR Created Successfully!");
+      console.log("📦 Base64 Image Data:", qrBase64.substring(0, 50) + "...");
+    } else {
+      console.warn("⚠️ No QR base64 returned from PayMongo. Full response:");
+      console.dir(attachData, { depth: null });
+    }
+
+    res.json({
+      success: true,
+      message: "Scan this QR to complete payment",
+      payment_intent_id: intentId,
+      qrImageBase64: qrBase64,
+    });
+  } catch (err) {
+    console.error("[Create Payment Error]", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error creating payment",
+    });
+  }
+});
+
+router.get("/check_payment_status/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const headers = {
+      accept: "application/json",
+      authorization:
+        "Basic " +
+        Buffer.from(`${process.env.SECRET_KEY_PAYMONGO}:`).toString("base64"),
+    };
+
+    const response = await fetch(`https://api.paymongo.com/v1/payment_intents/${id}`, {
+      method: "GET",
+      headers,
+    });
+
+    const data = await response.json();
+
+    const status = data.data?.attributes?.status || "unknown";
+    console.log(`🔍 Payment Status for ${id}: ${status}`);
+
+    res.json({ success: true, status });
+  } catch (err) {
+    console.error("[Check Payment Status Error]", err);
+    res.status(500).json({ success: false, message: "Error checking payment status" });
+  }
+});
+
+router.post("/cancel_payment_intent", async (req, res) => {
+  const { payment_intent_id } = req.body;
+
+  if (!payment_intent_id) {
+    return res.status(400).json({ success: false, message: "Missing payment intent ID." });
+  }
+
+  try {
+    const headers = {
+      accept: "application/json",
+      "content-type": "application/json",
+      authorization:
+        "Basic " + Buffer.from(`${process.env.SECRET_KEY_PAYMONGO}:`).toString("base64"),
+    };
+
+    const cancelRes = await fetch(
+      `https://api.paymongo.com/v1/payment_intents/${payment_intent_id}/cancel`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+
+    const data = await cancelRes.json();
+
+    if (!data.data) {
+      console.error("❌ Cancel failed:", data);
+      return res.status(400).json({ success: false, message: "Failed to cancel payment." });
+    }
+
+    console.log(`🛑 Payment intent ${payment_intent_id} canceled successfully.`);
+    res.json({ success: true, message: "Payment canceled successfully." });
+  } catch (err) {
+    console.error("[Cancel Payment Error]", err);
+    res.status(500).json({ success: false, message: "Server error canceling payment." });
+  }
+});
+
 module.exports = router;
