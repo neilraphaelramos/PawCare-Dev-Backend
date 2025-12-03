@@ -59,12 +59,23 @@ Here is the system usage guide:
   - Order status can be viewed in the **Orders History**.
 
 • **Online Consultation**
-  - Go to **Online Consultation Tab**.
-  - Choose your pet (must already be registered in My Pets).
-  - Add description, pick **Regular** or **Urgent**.
-  - Each type has a price shown.
-  - Pay via **QRPH**, receive a receipt, then submit your request.
-  - Wait for approval or decline (reason is shown if declined).
+  - Go to the **Online Consultation Tab**.
+  - Select your pet (must be registered in the My Pets Tab).
+  - Enter your consultation description.
+  - Choose the consultation type: **Regular** or **Urgent**.
+  - Each consultation type shows a corresponding price.
+  - Complete the payment using **QRPH**. After successful payment, a receipt will appear.
+  - Submit your online consultation request.
+  - Wait for your request to be reviewed. It will be marked as **Approved** or **Declined**.
+  - If Declined, the system will display the reason.
+
+  • **If Approved**
+    - Wait for the scheduled **date and time** of your consultation.
+    - When the time arrives, go to your **Dashboard**.
+    - In the Dashboard, find the **Upcoming Online Consultation** section.
+    - Click **Join Chat Session** from that section.
+    - You can send real-time text messages to the veterinarian.
+    - You may also start a **live video call** with the veterinarian during the session.
 
 • **Profile**
   - In **Profile Tab**, users can edit profile details and profile picture.
